@@ -79,7 +79,7 @@ const Matches = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-[#F5F7FA] text-[#1A1A1A]">
       <Navbar />
       <div className="container mx-auto px-4 pt-24 pb-16">
         <div className="mb-8 flex items-center justify-between">
@@ -165,7 +165,7 @@ const Matches = () => {
                   <CardContent className="p-4">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-4 flex-1">
-                        <Badge className={`${statusConfig.color} text-white`}>
+                        <Badge className={`${statusConfig.color} text-[#1A1A1A]`}>
                           <StatusIcon className="mr-1 h-3 w-3" />
                           {statusConfig.label}
                         </Badge>
@@ -201,6 +201,11 @@ const Matches = () => {
                         <div className="text-sm text-muted-foreground">
                           {format(new Date(match.scheduledAt), "HH:mm")}
                         </div>
+                        {match.arena && (
+                          <div className="text-xs text-muted-foreground mt-1">
+                            {match.arena.name}
+                          </div>
+                        )}
                       </div>
                     </div>
                   </CardContent>

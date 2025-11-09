@@ -34,7 +34,7 @@ const TeamDetail = () => {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-background">
+      <div className="min-h-screen bg-[#F5F7FA] text-[#1A1A1A]">
         <Navbar />
         <div className="container mx-auto px-4 pt-24 pb-16">
           <div className="text-center py-12">
@@ -47,7 +47,7 @@ const TeamDetail = () => {
 
   if (!team) {
     return (
-      <div className="min-h-screen bg-background">
+      <div className="min-h-screen bg-[#F5F7FA] text-[#1A1A1A]">
         <Navbar />
         <div className="container mx-auto px-4 pt-24 pb-16">
           <Card>
@@ -69,14 +69,16 @@ const TeamDetail = () => {
   );
 
   const getTierColor = (tier: string) => {
+    const normalizedTier = tier?.toLowerCase() || 'beginner';
     const colors: Record<string, string> = {
       beginner: "bg-gray-100 text-gray-800",
-      intermediate: "bg-green-100 text-green-800",
-      advanced: "bg-blue-100 text-blue-800",
-      regional: "bg-yellow-100 text-yellow-800",
+      amateur: "bg-blue-100 text-blue-800",
+      regular: "bg-green-100 text-green-800",
+      professional: "bg-purple-100 text-purple-800",
+      legendary: "bg-orange-100 text-orange-800",
       national: "bg-red-100 text-red-800",
     };
-    return colors[tier?.toLowerCase()] || colors.beginner;
+    return colors[normalizedTier] || colors.beginner;
   };
 
   // Mock players data - replace with actual API call
@@ -106,7 +108,7 @@ const TeamDetail = () => {
     });
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-[#F5F7FA] text-[#1A1A1A]">
       <Navbar />
       <div className="container mx-auto px-4 pt-24 pb-16">
         <Button variant="ghost" onClick={() => navigate("/teams")} className="mb-6">
@@ -126,9 +128,9 @@ const TeamDetail = () => {
                   <h1 className="text-4xl font-bold mb-2">{team.name}</h1>
                   <div className="flex items-center gap-3">
                     <p className="text-muted-foreground">{team.school?.name || "Independent"}</p>
-                    {team.school?.tier && (
-                      <Badge className={getTierColor(team.school.tier)}>
-                        {team.school.tier}
+                    {(team.tier || team.school?.tier) && (
+                      <Badge className={getTierColor(team.tier || team.school?.tier)}>
+                        {((team.tier || team.school?.tier)?.charAt(0).toUpperCase() + (team.tier || team.school?.tier)?.slice(1))}
                       </Badge>
                     )}
                   </div>

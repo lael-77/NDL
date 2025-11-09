@@ -21,17 +21,32 @@ const Dashboard = () => {
       navigate("/auth");
     } else {
       // Redirect to role-specific dashboard
-      if (user?.role === "admin") {
+      const role = user?.role?.toLowerCase();
+      // Check if on admin subdomain
+      const hostname = window.location.hostname;
+      const isAdminSubdomain = hostname.startsWith('admin.') || hostname === 'admin.localhost';
+      
+      if (role === "admin") {
+        // Admin can access via /admin path (development) or subdomain (production)
+        // For development, just use /admin path
+        // For production with subdomain configured, it will work automatically
         navigate("/admin");
-      } else if (user?.role === "judge") {
+      } else if (role === "judge") {
         navigate("/judge");
-      } else if (user?.role === "player") {
+      } else if (role === "player") {
         navigate("/player");
+      } else if (role === "coach") {
+        navigate("/coach");
+      } else if (role === "school_admin" || role === "schooladmin") {
+        navigate("/school-admin");
+      } else if (role === "sponsor") {
+        navigate("/sponsor");
       } else {
-        fetchMatches();
+        // Default to player dashboard if role is unknown
+        navigate("/player");
       }
     }
-  }, [isAuthenticated, user, navigate, fetchMatches]);
+  }, [isAuthenticated, user, navigate]);
 
   const { data: teams } = useQuery({
     queryKey: ["teams"],
@@ -61,7 +76,7 @@ const Dashboard = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-[#F5F7FA] text-[#1A1A1A]">
       <Navbar />
       <div className="container mx-auto px-4 pt-24 pb-16">
         <div className="mb-8 flex items-center justify-between">

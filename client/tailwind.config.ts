@@ -14,6 +14,22 @@ export default {
     },
     extend: {
       colors: {
+        // NDL Official Color Palette
+        ndl: {
+          primary: '#002B5C',
+          accent: '#0077CC',
+          magenta: '#E20074',
+          bg: '#F5F7FA',
+          text: '#1A1A1A',
+          secondary: '#4A4A4A',
+          border: '#E0E0E0',
+        },
+        tier: {
+          beginner: '#22C55E',
+          intermediate: '#FACC15',
+          advanced: '#3B82F6',
+          national: '#E11D48',
+        },
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
         ring: "hsl(var(--ring))",

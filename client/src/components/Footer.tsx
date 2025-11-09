@@ -12,141 +12,105 @@ const sponsors = [
 
 const Footer = () => {
   return (
-    <footer className="border-t border-border bg-card/50 backdrop-blur-sm mt-auto">
+    <footer className="border-t border-[#E0E0E0] bg-white backdrop-blur-sm mt-auto">
       <div className="container mx-auto px-4 py-12">
-        {/* Sponsors Carousel */}
-        <div className="mb-12">
-          <h3 className="text-center text-sm font-semibold text-muted-foreground mb-6 uppercase tracking-wider">
-            Our Sponsors
-          </h3>
-          <div className="flex items-center justify-center gap-8 overflow-x-auto pb-4">
-            {sponsors.map((sponsor, index) => (
-              <motion.div
-                key={sponsor.name}
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: index * 0.1 }}
-                className="flex-shrink-0"
-              >
-                <Link
-                  to={sponsor.url}
-                  className="flex flex-col items-center gap-2 p-4 rounded-lg hover:bg-muted/50 transition-colors min-w-[120px]"
-                >
-                  <div className="w-16 h-16 rounded-lg bg-gradient-to-br from-primary/20 to-primary/10 flex items-center justify-center text-xl font-bold text-primary border border-primary/20">
-                    {sponsor.logo}
-                  </div>
-                  <span className="text-xs text-muted-foreground font-medium">{sponsor.name}</span>
-                </Link>
-              </motion.div>
-            ))}
-          </div>
-        </div>
-
         {/* Footer Content */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-12 mb-8">
+          {/* Left: Quick Links */}
           <div>
-            <Link to="/" className="flex items-center gap-2 mb-4">
-              <div className="rounded-lg bg-primary p-2">
-                <Trophy className="h-5 w-5 text-primary-foreground" />
-              </div>
-              <span className="text-xl font-bold bg-gradient-to-r from-primary to-info bg-clip-text text-transparent">
-                NDL
-              </span>
-            </Link>
-            <p className="text-sm text-muted-foreground">
-              National Developers League - Where Computing Becomes a Sport
-            </p>
-            <p className="text-xs text-muted-foreground mt-2">
-              Developed by Silicon Valley of Africa (SVA)
-            </p>
-          </div>
-
-          <div>
-            <h4 className="font-semibold mb-4">Competition</h4>
+            <h4 className="font-semibold mb-4 text-[#1A1A1A]">Competition</h4>
             <ul className="space-y-2 text-sm">
               <li>
-                <Link to="/leaderboard" className="text-muted-foreground hover:text-primary transition-colors">
+                <Link to="/leaderboard" className="text-[#4A4A4A] hover:text-[#0077CC] transition-colors">
                   Leaderboard
                 </Link>
               </li>
               <li>
-                <Link to="/matches" className="text-muted-foreground hover:text-primary transition-colors">
+                <Link to="/matches" className="text-[#4A4A4A] hover:text-[#0077CC] transition-colors">
                   Matches
                 </Link>
               </li>
               <li>
-                <Link to="/teams" className="text-muted-foreground hover:text-primary transition-colors">
+                <Link to="/teams" className="text-[#4A4A4A] hover:text-[#0077CC] transition-colors">
                   Teams
                 </Link>
               </li>
               <li>
-                <Link to="/fixtures" className="text-muted-foreground hover:text-primary transition-colors">
+                <Link to="/fixtures" className="text-[#4A4A4A] hover:text-[#0077CC] transition-colors">
                   Arenas
                 </Link>
               </li>
-            </ul>
-          </div>
-
-          <div>
-            <h4 className="font-semibold mb-4">Resources</h4>
-            <ul className="space-y-2 text-sm">
               <li>
-                <Link to="/about" className="text-muted-foreground hover:text-primary transition-colors">
-                  About NDL
+                <Link to="/academy" className="text-[#4A4A4A] hover:text-[#0077CC] transition-colors">
+                  Academy
                 </Link>
               </li>
-              <li>
-                <a href="#" className="text-muted-foreground hover:text-primary transition-colors">
-                  Rules & Regulations
-                </a>
-              </li>
-              <li>
-                <a href="#" className="text-muted-foreground hover:text-primary transition-colors">
-                  FAQ
-                </a>
-              </li>
-              <li>
-                <a href="#" className="text-muted-foreground hover:text-primary transition-colors">
-                  Contact
-                </a>
-              </li>
             </ul>
           </div>
 
-          <div>
-            <h4 className="font-semibold mb-4">Connect</h4>
-            <div className="flex gap-4">
-              <a
+          {/* Center: NDL Motto */}
+          <div className="text-center">
+            <Link to="/" className="flex items-center justify-center gap-2 mb-4">
+              <div className="rounded-lg bg-[#0077CC] p-2">
+                <Trophy className="h-5 w-5 text-white" />
+              </div>
+              <span className="text-xl font-bold text-[#002B5C]">
+                NDL
+              </span>
+            </Link>
+            <p className="text-sm text-[#4A4A4A] italic">
+              "The Future of Tech Starts in Our Schools."
+            </p>
+            <p className="text-xs text-[#4A4A4A] mt-4">
+              National Developers League
+            </p>
+          </div>
+
+          {/* Right: Socials */}
+          <div className="text-right md:text-left">
+            <h4 className="font-semibold mb-4 text-[#1A1A1A]">Connect</h4>
+            <div className="flex gap-4 justify-end md:justify-start">
+              <motion.a
                 href="#"
-                className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center hover:bg-primary/10 hover:text-primary transition-colors"
+                className="w-10 h-10 rounded-lg bg-white border border-[#E0E0E0] flex items-center justify-center hover:bg-[#0077CC]/10 hover:border-[#0077CC] hover:text-[#0077CC] transition-all"
+                whileHover={{ scale: 1.1 }}
+                whileTap={{ scale: 0.95 }}
               >
                 <Twitter className="h-5 w-5" />
-              </a>
-              <a
+              </motion.a>
+              <motion.a
                 href="#"
-                className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center hover:bg-primary/10 hover:text-primary transition-colors"
-              >
-                <Github className="h-5 w-5" />
-              </a>
-              <a
-                href="#"
-                className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center hover:bg-primary/10 hover:text-primary transition-colors"
+                className="w-10 h-10 rounded-lg bg-white border border-[#E0E0E0] flex items-center justify-center hover:bg-[#0077CC]/10 hover:border-[#0077CC] hover:text-[#0077CC] transition-all"
+                whileHover={{ scale: 1.1 }}
+                whileTap={{ scale: 0.95 }}
               >
                 <Linkedin className="h-5 w-5" />
-              </a>
-              <a
+              </motion.a>
+              <motion.a
                 href="#"
-                className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center hover:bg-primary/10 hover:text-primary transition-colors"
+                className="w-10 h-10 rounded-lg bg-white border border-[#E0E0E0] flex items-center justify-center hover:bg-[#0077CC]/10 hover:border-[#0077CC] hover:text-[#0077CC] transition-all"
+                whileHover={{ scale: 1.1 }}
+                whileTap={{ scale: 0.95 }}
+              >
+                <Github className="h-5 w-5" />
+              </motion.a>
+              <motion.a
+                href="#"
+                className="w-10 h-10 rounded-lg bg-white border border-[#E0E0E0] flex items-center justify-center hover:bg-[#0077CC]/10 hover:border-[#0077CC] hover:text-[#0077CC] transition-all"
+                whileHover={{ scale: 1.1 }}
+                whileTap={{ scale: 0.95 }}
               >
                 <Mail className="h-5 w-5" />
-              </a>
+              </motion.a>
             </div>
           </div>
         </div>
 
-        <div className="pt-8 border-t border-border text-center text-sm text-muted-foreground">
-          <p>&copy; {new Date().getFullYear()} National Developers League. All rights reserved.</p>
+        {/* Divider & Copyright */}
+        <div className="pt-8 border-t border-[#E0E0E0] text-center">
+          <p className="text-sm text-[#4A4A4A]">
+            © Silicon Valley of Africa | 2025
+          </p>
         </div>
       </div>
     </footer>

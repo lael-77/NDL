@@ -1,6 +1,7 @@
 import { PrismaClient } from '@prisma/client';
 import { emitMatchUpdate, emitMatchLive } from '../services/socket.js';
 import { calculateMatchPoints } from '../services/scoring.js';
+import { canManageMatch } from '../utils/permissions.js';
 
 const prisma = new PrismaClient();
 
@@ -9,15 +10,68 @@ export const getMatches = async (req, res) => {
   try {
     const matches = await prisma.match.findMany({
       include: {
-        homeTeam: true,
-        awayTeam: true,
-        winner: true,
+        homeTeam: {
+          include: {
+            school: {
+              select: {
+                name: true,
+                tier: true,
+                location: true,
+              },
+            },
+          },
+        },
+        awayTeam: {
+          include: {
+            school: {
+              select: {
+                name: true,
+                tier: true,
+                location: true,
+              },
+            },
+          },
+        },
+        winner: {
+          include: {
+            school: {
+              select: {
+                name: true,
+                tier: true,
+                location: true,
+              },
+            },
+          },
+        },
+        arena: {
+          include: {
+            school: {
+              select: {
+                name: true,
+                location: true,
+              },
+            },
+          },
+        },
       },
       orderBy: {
         scheduledAt: 'desc',
       },
     });
-    res.json(matches);
+    
+    // Sort matches: in_progress first, then scheduled, then completed
+    const sortedMatches = matches.sort((a, b) => {
+      const statusOrder = { 'in_progress': 0, 'scheduled': 1, 'completed': 2, 'cancelled': 3 };
+      const aOrder = statusOrder[a.status] || 4;
+      const bOrder = statusOrder[b.status] || 4;
+      if (aOrder !== bOrder) {
+        return aOrder - bOrder;
+      }
+      // If same status, sort by date (most recent first)
+      return new Date(b.scheduledAt) - new Date(a.scheduledAt);
+    });
+    
+    res.json(sortedMatches);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -30,9 +84,39 @@ export const getMatchById = async (req, res) => {
     const match = await prisma.match.findUnique({
       where: { id },
       include: {
-        homeTeam: true,
-        awayTeam: true,
-        winner: true,
+        homeTeam: {
+          include: {
+            school: {
+              select: {
+                name: true,
+                tier: true,
+                location: true,
+              },
+            },
+          },
+        },
+        awayTeam: {
+          include: {
+            school: {
+              select: {
+                name: true,
+                tier: true,
+                location: true,
+              },
+            },
+          },
+        },
+        winner: {
+          include: {
+            school: {
+              select: {
+                name: true,
+                tier: true,
+                location: true,
+              },
+            },
+          },
+        },
       },
     });
     
@@ -49,7 +133,27 @@ export const getMatchById = async (req, res) => {
 // Create a new match
 export const createMatch = async (req, res) => {
   try {
+    const userId = req.user?.userId || req.user?.id;
     const { homeTeamId, awayTeamId, scheduledAt, status } = req.body;
+    
+    // Check permission - user must be able to manage at least one of the teams
+    const user = await prisma.profile.findUnique({
+      where: { id: userId },
+      select: { role: true },
+    });
+    
+    const isAdmin = user?.role === 'admin';
+    const isJudge = user?.role === 'judge';
+    
+    if (!isAdmin && !isJudge) {
+      // Check if user can manage either team
+      const canManageHome = await canManageTeam(userId, homeTeamId);
+      const canManageAway = await canManageTeam(userId, awayTeamId);
+      
+      if (!canManageHome && !canManageAway) {
+        return res.status(403).json({ error: 'You do not have permission to create matches for these teams' });
+      }
+    }
     
     const match = await prisma.match.create({
       data: {
@@ -59,9 +163,39 @@ export const createMatch = async (req, res) => {
         status: status || 'scheduled',
       },
       include: {
-        homeTeam: true,
-        awayTeam: true,
-        winner: true,
+        homeTeam: {
+          include: {
+            school: {
+              select: {
+                name: true,
+                tier: true,
+                location: true,
+              },
+            },
+          },
+        },
+        awayTeam: {
+          include: {
+            school: {
+              select: {
+                name: true,
+                tier: true,
+                location: true,
+              },
+            },
+          },
+        },
+        winner: {
+          include: {
+            school: {
+              select: {
+                name: true,
+                tier: true,
+                location: true,
+              },
+            },
+          },
+        },
       },
     });
     
@@ -77,8 +211,15 @@ export const createMatch = async (req, res) => {
 // Update a match
 export const updateMatch = async (req, res) => {
   try {
+    const userId = req.user?.userId || req.user?.id;
     const { id } = req.params;
     const { homeScore, awayScore, status, winnerId } = req.body;
+    
+    // Check permission
+    const hasPermission = await canManageMatch(userId, id);
+    if (!hasPermission) {
+      return res.status(403).json({ error: 'You do not have permission to update this match' });
+    }
     
     // Get the previous match state to check if it was just completed
     const previousMatch = await prisma.match.findUnique({
@@ -95,9 +236,39 @@ export const updateMatch = async (req, res) => {
         winnerId,
       },
       include: {
-        homeTeam: true,
-        awayTeam: true,
-        winner: true,
+        homeTeam: {
+          include: {
+            school: {
+              select: {
+                name: true,
+                tier: true,
+                location: true,
+              },
+            },
+          },
+        },
+        awayTeam: {
+          include: {
+            school: {
+              select: {
+                name: true,
+                tier: true,
+                location: true,
+              },
+            },
+          },
+        },
+        winner: {
+          include: {
+            school: {
+              select: {
+                name: true,
+                tier: true,
+                location: true,
+              },
+            },
+          },
+        },
       },
     });
     

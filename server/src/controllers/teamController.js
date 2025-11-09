@@ -1,5 +1,6 @@
 import { PrismaClient } from '@prisma/client';
 import { emitTeamUpdate } from '../services/socket.js';
+import { canManageTeam } from '../utils/permissions.js';
 
 const prisma = new PrismaClient();
 
@@ -56,7 +57,29 @@ export const getTeamById = async (req, res) => {
 // Create a new team
 export const createTeam = async (req, res) => {
   try {
+    const userId = req.user?.userId || req.user?.id;
     const { name, schoolId, captainId, logoUrl } = req.body;
+    
+    // Check permission - user must be able to manage teams in the school
+    if (schoolId) {
+      // For now, allow if user is admin, school admin, or coach
+      // More specific check can be added
+      const user = await prisma.profile.findUnique({
+        where: { id: userId },
+        select: { role: true, schoolId: true },
+        include: {
+          coachProfile: { select: { schoolId: true } },
+        },
+      });
+
+      const isAdmin = user?.role === 'admin';
+      const isSchoolAdmin = user?.role === 'school_admin' && user.schoolId === schoolId;
+      const isCoach = user?.role === 'coach' && user.coachProfile?.schoolId === schoolId;
+
+      if (!isAdmin && !isSchoolAdmin && !isCoach) {
+        return res.status(403).json({ error: 'You do not have permission to create teams in this school' });
+      }
+    }
     
     const team = await prisma.team.create({
       data: {
@@ -83,8 +106,15 @@ export const createTeam = async (req, res) => {
 // Update a team
 export const updateTeam = async (req, res) => {
   try {
+    const userId = req.user?.userId || req.user?.id;
     const { id } = req.params;
     const { name, logoUrl, points, wins, draws, losses } = req.body;
+    
+    // Check permission
+    const hasPermission = await canManageTeam(userId, id);
+    if (!hasPermission) {
+      return res.status(403).json({ error: 'You do not have permission to update this team' });
+    }
     
     const team = await prisma.team.update({
       where: { id },
@@ -114,7 +144,14 @@ export const updateTeam = async (req, res) => {
 // Delete a team
 export const deleteTeam = async (req, res) => {
   try {
+    const userId = req.user?.userId || req.user?.id;
     const { id } = req.params;
+    
+    // Check permission
+    const hasPermission = await canManageTeam(userId, id);
+    if (!hasPermission) {
+      return res.status(403).json({ error: 'You do not have permission to delete this team' });
+    }
     
     await prisma.team.delete({
       where: { id },

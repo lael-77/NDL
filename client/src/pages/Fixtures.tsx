@@ -53,7 +53,7 @@ const Fixtures = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
+    <div className="min-h-screen bg-[#F5F7FA] text-[#1A1A1A] flex flex-col">
       <Navbar />
       <div className="flex-1 pt-24 pb-16">
         <div className="container mx-auto px-4">
@@ -138,7 +138,7 @@ const Fixtures = () => {
                           <CardContent className="p-4">
                             <div className="flex items-center justify-between">
                               <div className="flex items-center gap-4 flex-1">
-                                <Badge className={`${statusConfig.color} text-white`}>
+                                <Badge className={`${statusConfig.color} text-[#1A1A1A]`}>
                                   <StatusIcon className="mr-1 h-3 w-3" />
                                   {statusConfig.label}
                                 </Badge>

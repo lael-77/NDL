@@ -12,17 +12,26 @@ datasource db {
 
 enum UserRole {
   player
-  mentor
+  coach
   judge
   admin
+  school_admin
+  sponsor
 }
 
 enum TierLevel {
   beginner
-  intermediate
-  advanced
-  regional
+  amateur
+  regular
+  professional
+  legendary
   national
+}
+
+enum StudentRole {
+  Developer
+  Designer
+  Strategist
 }
 
 enum MatchStatus {
@@ -33,17 +42,37 @@ enum MatchStatus {
 }
 
 model Profile {
-  id        String   @id @default(uuid())
-  email     String   @unique @db.VarChar(255)
-  fullName  String   @map("full_name") @db.VarChar(255)
-  role      UserRole @default(player)
-  avatarUrl String?  @map("avatar_url") @db.VarChar(500)
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+  id                String      @id @default(uuid())
+  email             String      @unique @db.VarChar(255)
+  password          String?     @db.VarChar(255) // Hashed password
+  fullName          String      @map("full_name") @db.VarChar(255)
+  role              UserRole    @default(player)
+  avatarUrl         String?     @map("avatar_url") @db.VarChar(500)
+  // Password reset fields
+  resetToken        String?     @map("reset_token") @db.VarChar(255)
+  resetTokenExpiry  DateTime?   @map("reset_token_expiry")
+  // Student-specific fields
+  studentRole       StudentRole? @map("student_role")
+  age               Int?
+  grade             Int?
+  xp                Int         @default(0)
+  // School relationships
+  schoolId          String?     @map("school_id") // For school_admin role
+  studentSchoolId  String?     @map("student_school_id") // For students - direct link to school
+  createdAt         DateTime    @default(now()) @map("created_at")
+  updatedAt         DateTime    @updatedAt @map("updated_at")
 
   // Relations
   teamsAsCaptain Team[]          @relation("TeamCaptain")
   teamMembers    TeamMember[]
+  coachProfile    Coach?
+  school          School?         @relation("SchoolAdmin", fields: [schoolId], references: [id])
+  studentSchool   School?         @relation("StudentSchool", fields: [studentSchoolId], references: [id])
+  notifications  Notification[]
+  sentMessages   Message[]       @relation("MessageSender")
+  receivedMessages Message[]      @relation("MessageReceiver")
+  academyProgress AcademyProgress[]
+  challengeSubmissions ChallengeSubmission[]
 
   @@map("profiles")
 }
@@ -53,27 +82,35 @@ model School {
   name      String     @db.VarChar(255)
   location  String?    @db.VarChar(255)
   tier      TierLevel  @default(beginner)
+  motto     String?    @db.VarChar(500)
+  sponsor   String?    @db.VarChar(255)
   createdAt DateTime   @default(now()) @map("created_at")
   updatedAt DateTime   @updatedAt @map("updated_at")
 
   // Relations
-  teams Team[]
+  teams  Team[]
+  coaches Coach[]
+  arenas Arena[]
+  arenaApplications ArenaApplication[]
+  schoolAdmins Profile[] @relation("SchoolAdmin")
+  students Profile[] @relation("StudentSchool") // Students directly linked to school
 
   @@map("schools")
 }
 
 model Team {
-  id        String   @id @default(uuid())
-  name      String   @db.VarChar(255)
-  schoolId  String   @map("school_id")
-  captainId String?  @map("captain_id")
-  logoUrl   String?  @map("logo_url") @db.VarChar(500)
-  points    Int      @default(0)
-  wins      Int      @default(0)
-  draws     Int      @default(0)
-  losses    Int      @default(0)
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+  id        String     @id @default(uuid())
+  name      String     @db.VarChar(255)
+  schoolId  String     @map("school_id")
+  tier      TierLevel  @default(beginner)
+  captainId String?    @map("captain_id")
+  logoUrl   String?    @map("logo_url") @db.VarChar(500)
+  points    Int        @default(0)
+  wins      Int        @default(0)
+  draws     Int        @default(0)
+  losses    Int        @default(0)
+  createdAt DateTime   @default(now()) @map("created_at")
+  updatedAt DateTime   @updatedAt @map("updated_at")
 
   // Relations
   school        School       @relation(fields: [schoolId], references: [id], onDelete: Cascade)
@@ -82,6 +119,7 @@ model Team {
   homeMatches   Match[]      @relation("HomeTeam")
   awayMatches   Match[]      @relation("AwayTeam")
   winsAsWinner  Match[]      @relation("MatchWinner")
+  challengeSubmissions ChallengeSubmission[]
 
   @@map("teams")
 }
@@ -104,6 +142,7 @@ model Match {
   id          String      @id @default(uuid())
   homeTeamId  String      @map("home_team_id")
   awayTeamId  String      @map("away_team_id")
+  arenaId     String?     @map("arena_id")
   scheduledAt DateTime    @map("scheduled_at")
   status      MatchStatus @default(scheduled)
   homeScore   Int?        @default(0) @map("home_score")
@@ -116,8 +155,25 @@ model Match {
   homeTeam Team  @relation("HomeTeam", fields: [homeTeamId], references: [id])
   awayTeam Team  @relation("AwayTeam", fields: [awayTeamId], references: [id])
   winner   Team? @relation("MatchWinner", fields: [winnerId], references: [id])
+  arena    Arena? @relation("ArenaMatch", fields: [arenaId], references: [id])
 
   @@map("matches")
+}
+
+model Coach {
+  id        String   @id @default(uuid())
+  profileId String   @unique @map("profile_id")
+  schoolId  String   @map("school_id")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  profile Profile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  school  School  @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  // Students managed by this coach (through school relationship)
+  // Access via: school -> teams -> members -> player
+
+  @@map("coaches")
 }
 
 model Challenge {
@@ -130,6 +186,115 @@ model Challenge {
   deadline    DateTime? @map("deadline")
   createdAt   DateTime  @default(now()) @map("created_at")
 
+  // Relations
+  submissions ChallengeSubmission[]
+
   @@map("challenges")
+}
+
+model Notification {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  title     String   @db.VarChar(255)
+  message   String   @db.Text
+  type      String   @db.VarChar(50) // match, challenge, award, message, etc.
+  read      Boolean  @default(false)
+  link      String?  @db.VarChar(500)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  // Relations
+  user Profile @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("notifications")
+}
+
+model Message {
+  id        String   @id @default(uuid())
+  senderId  String   @map("sender_id")
+  receiverId String  @map("receiver_id")
+  subject   String?  @db.VarChar(255)
+  content   String   @db.Text
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  // Relations
+  sender   Profile @relation("MessageSender", fields: [senderId], references: [id], onDelete: Cascade)
+  receiver Profile @relation("MessageReceiver", fields: [receiverId], references: [id], onDelete: Cascade)
+
+  @@map("messages")
+}
+
+model AcademyProgress {
+  id          String   @id @default(uuid())
+  playerId    String   @map("player_id")
+  courseName  String   @db.VarChar(255)
+  courseTier  TierLevel @map("course_tier")
+  progress    Int      @default(0) // 0-100
+  completed   Boolean  @default(false)
+  enrolledAt  DateTime @default(now()) @map("enrolled_at")
+  completedAt DateTime? @map("completed_at")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  player Profile @relation(fields: [playerId], references: [id], onDelete: Cascade)
+
+  @@unique([playerId, courseName])
+  @@map("academy_progress")
+}
+
+model ChallengeSubmission {
+  id          String    @id @default(uuid())
+  challengeId String   @map("challenge_id")
+  playerId     String   @map("player_id")
+  teamId      String?  @map("team_id")
+  submissionUrl String? @map("submission_url") @db.VarChar(500)
+  status      String   @default("pending") @db.VarChar(50) // pending, reviewed, approved, rejected
+  score       Int?     @default(0)
+  feedback    String?  @db.Text
+  submittedAt DateTime  @default(now()) @map("submitted_at")
+  reviewedAt  DateTime? @map("reviewed_at")
+
+  // Relations
+  challenge Challenge @relation(fields: [challengeId], references: [id], onDelete: Cascade)
+  player    Profile   @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  team      Team?     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+
+  @@map("challenge_submissions")
+}
+
+model Arena {
+  id          String   @id @default(uuid())
+  schoolId    String   @map("school_id")
+  name        String   @db.VarChar(255)
+  capacity    Int      @default(50)
+  facilities  String?  @db.Text
+  tier        TierLevel @default(beginner)
+  isActive    Boolean  @default(true) @map("is_active")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  school      School   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  applications ArenaApplication[]
+  matches     Match[]  @relation("ArenaMatch")
+
+  @@map("arenas")
+}
+
+model ArenaApplication {
+  id          String   @id @default(uuid())
+  arenaId     String   @map("arena_id")
+  schoolId    String   @map("school_id")
+  status      String   @default("pending") @db.VarChar(50) // pending, approved, rejected
+  message     String?  @db.Text
+  appliedAt   DateTime @default(now()) @map("applied_at")
+  reviewedAt  DateTime? @map("reviewed_at")
+
+  // Relations
+  arena  Arena  @relation(fields: [arenaId], references: [id], onDelete: Cascade)
+  school School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+
+  @@map("arena_applications")
 }
 

@@ -36,10 +36,10 @@ const useAuthStore = create((set) => ({
   },
 
   // Register
-  register: async (email, password, fullName, role) => {
+  register: async (email, password, fullName, role, schoolId) => {
     set({ loading: true, error: null });
     try {
-      const response = await authApi.register({ email, password, fullName, role });
+      const response = await authApi.register({ email, password, fullName, role, schoolId });
       const { user, token } = response.data;
       
       localStorage.setItem('token', token);

@@ -63,7 +63,7 @@ const MatchDetail = () => {
 
   if (loading && !currentMatch) {
     return (
-      <div className="min-h-screen bg-background">
+      <div className="min-h-screen bg-[#F5F7FA] text-[#1A1A1A]">
         <Navbar />
         <div className="container mx-auto px-4 pt-24 pb-16">
           <div className="text-center py-12">
@@ -76,7 +76,7 @@ const MatchDetail = () => {
 
   if (!currentMatch) {
     return (
-      <div className="min-h-screen bg-background">
+      <div className="min-h-screen bg-[#F5F7FA] text-[#1A1A1A]">
         <Navbar />
         <div className="container mx-auto px-4 pt-24 pb-16">
           <Card>
@@ -97,7 +97,7 @@ const MatchDetail = () => {
   const StatusIcon = statusConfig.icon;
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-[#F5F7FA] text-[#1A1A1A]">
       <Navbar />
       <div className="container mx-auto px-4 pt-24 pb-16">
         <Button variant="ghost" onClick={() => navigate("/matches")} className="mb-6">
@@ -109,7 +109,7 @@ const MatchDetail = () => {
         <Card className="mb-6">
           <CardContent className="p-8">
             <div className="flex items-center justify-between mb-6">
-              <Badge className={`${statusConfig.color} text-white text-lg px-4 py-2`}>
+              <Badge className={`${statusConfig.color} text-[#1A1A1A] text-lg px-4 py-2`}>
                 <StatusIcon className="mr-2 h-4 w-4" />
                 {statusConfig.label}
               </Badge>
