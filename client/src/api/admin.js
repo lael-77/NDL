@@ -53,5 +53,35 @@ export const adminApi = {
   removeFromRole: (userId) => {
     return axios.put(`/admin/users/${userId}/remove-role`);
   },
+
+  // Create school
+  createSchool: (schoolData) => {
+    return axios.post('/admin/schools', schoolData);
+  },
+
+  // Process bulk promotions/relegations
+  processBulkPromotionsRelegations: (action, tier) => {
+    return axios.post('/admin/schools/bulk-promotions-relegations', { action, tier });
+  },
+
+  // Approve match
+  approveMatch: (matchId) => {
+    return axios.post(`/admin/matches/${matchId}/approve`);
+  },
+
+  // Edit match results
+  editMatchResults: (matchId, results) => {
+    return axios.put(`/admin/matches/${matchId}/results`, results);
+  },
+
+  // Announce challenge
+  announceChallenge: (challengeData) => {
+    return axios.post('/admin/challenges/announce', challengeData);
+  },
+
+  // Broadcast message
+  broadcastMessage: (messageData) => {
+    return axios.post('/admin/messages/broadcast', messageData);
+  },
 };
 

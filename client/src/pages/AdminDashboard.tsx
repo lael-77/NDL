@@ -20,11 +20,12 @@ import {
   GraduationCap, Settings, Search, Plus, CheckCircle, 
   XCircle, TrendingUp, Trophy, BarChart3, Bell, 
   FileText, Target, ArrowUp, ArrowDown, Eye, EyeOff,
-  Edit, Trash2, UserX, School
+  Edit, Trash2, UserX, School, Send, MessageSquare
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import axios from "@/api/axios";
 
 // Create Admin Form Component
@@ -321,6 +322,117 @@ const CreateUserForm = ({ onSuccess }: { onSuccess: () => void }) => {
   );
 };
 
+// Create School Form Component
+const CreateSchoolForm = ({ onSuccess }: { onSuccess: () => void }) => {
+  const [name, setName] = useState("");
+  const [location, setLocation] = useState("");
+  const [tier, setTier] = useState("beginner");
+  const [motto, setMotto] = useState("");
+  const [sponsor, setSponsor] = useState("");
+  const [loading, setLoading] = useState(false);
+  const { toast } = useToast();
+
+  const handleCreateSchool = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+
+    try {
+      await adminApi.createSchool({
+        name,
+        location: location || undefined,
+        tier,
+        motto: motto || undefined,
+        sponsor: sponsor || undefined,
+      });
+
+      toast({
+        title: "Success",
+        description: "School created successfully",
+      });
+
+      setName("");
+      setLocation("");
+      setTier("beginner");
+      setMotto("");
+      setSponsor("");
+      onSuccess();
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.response?.data?.error || "Failed to create school",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <form onSubmit={handleCreateSchool} className="space-y-4">
+      <div className="space-y-2">
+        <Label htmlFor="schoolName">School Name *</Label>
+        <Input
+          id="schoolName"
+          type="text"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          required
+          placeholder="School name"
+        />
+      </div>
+      <div className="space-y-2">
+        <Label htmlFor="schoolLocation">Location</Label>
+        <Input
+          id="schoolLocation"
+          type="text"
+          value={location}
+          onChange={(e) => setLocation(e.target.value)}
+          placeholder="City, Country"
+        />
+      </div>
+      <div className="space-y-2">
+        <Label htmlFor="schoolTier">Tier</Label>
+        <Select value={tier} onValueChange={setTier}>
+          <SelectTrigger>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="beginner">Beginner</SelectItem>
+            <SelectItem value="amateur">Amateur</SelectItem>
+            <SelectItem value="regular">Regular</SelectItem>
+            <SelectItem value="professional">Professional</SelectItem>
+            <SelectItem value="legendary">Legendary</SelectItem>
+            <SelectItem value="national">National</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+      <div className="space-y-2">
+        <Label htmlFor="schoolMotto">Motto</Label>
+        <Input
+          id="schoolMotto"
+          type="text"
+          value={motto}
+          onChange={(e) => setMotto(e.target.value)}
+          placeholder="School motto"
+        />
+      </div>
+      <div className="space-y-2">
+        <Label htmlFor="schoolSponsor">Sponsor</Label>
+        <Input
+          id="schoolSponsor"
+          type="text"
+          value={sponsor}
+          onChange={(e) => setSponsor(e.target.value)}
+          placeholder="Sponsor name"
+        />
+      </div>
+      <Button type="submit" disabled={loading} className="w-full">
+        {loading ? "Creating..." : "Create School"}
+      </Button>
+    </form>
+  );
+};
+
 // Change School Form Component
 const ChangeSchoolForm = ({ user, onSuccess }: { user: any; onSuccess: () => void }) => {
   const [schoolId, setSchoolId] = useState(user.studentSchoolId || user.schoolId || user.coachProfile?.schoolId || "");
@@ -468,6 +580,449 @@ const ChangeRoleForm = ({ user, onSuccess }: { user: any; onSuccess: () => void 
   );
 };
 
+// Bulk Promotions/Relegations Form Component
+const BulkPromotionsRelegationsForm = ({ initialAction, onSuccess }: { initialAction?: "promote" | "relegate"; onSuccess: () => void }) => {
+  const [action, setAction] = useState<"promote" | "relegate">(initialAction || "promote");
+  const [tier, setTier] = useState("");
+  const [loading, setLoading] = useState(false);
+  const { toast } = useToast();
+
+  const handleProcess = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+
+    try {
+      const response = await adminApi.processBulkPromotionsRelegations(action, tier || undefined);
+      toast({
+        title: "Success",
+        description: `${response.data.summary.processed} schools ${action === 'promote' ? 'promoted' : 'relegated'} successfully`,
+      });
+      onSuccess();
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.response?.data?.error || `Failed to process ${action}s`,
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <form onSubmit={handleProcess} className="space-y-4">
+      <div className="space-y-2">
+        <Label>Action *</Label>
+        <Select value={action} onValueChange={(value: "promote" | "relegate") => setAction(value)}>
+          <SelectTrigger>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="promote">Promote</SelectItem>
+            <SelectItem value="relegate">Relegate</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+      <div className="space-y-2">
+        <Label htmlFor="tierFilter">Filter by Tier (Optional)</Label>
+        <Select value={tier} onValueChange={setTier}>
+          <SelectTrigger>
+            <SelectValue placeholder="All tiers" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="">All Tiers</SelectItem>
+            <SelectItem value="beginner">Beginner</SelectItem>
+            <SelectItem value="amateur">Amateur</SelectItem>
+            <SelectItem value="regular">Regular</SelectItem>
+            <SelectItem value="professional">Professional</SelectItem>
+            <SelectItem value="legendary">Legendary</SelectItem>
+            <SelectItem value="national">National</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+      <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+        <p className="text-sm text-yellow-800">
+          ⚠️ This will {action} all eligible schools{tier ? ` in ${tier} tier` : ''}. This action cannot be undone.
+        </p>
+      </div>
+      <Button type="submit" disabled={loading} className="w-full" variant={action === "promote" ? "default" : "destructive"}>
+        {loading ? "Processing..." : `${action === 'promote' ? 'Promote' : 'Relegate'} Schools`}
+      </Button>
+    </form>
+  );
+};
+
+// Approve Matches Component
+const ApproveMatchesComponent = ({ matches, onSuccess }: { matches: any[]; onSuccess: () => void }) => {
+  const [loading, setLoading] = useState<string | null>(null);
+  const { toast } = useToast();
+
+  const handleApprove = async (matchId: string) => {
+    setLoading(matchId);
+    try {
+      await adminApi.approveMatch(matchId);
+      toast({
+        title: "Success",
+        description: "Match approved successfully",
+      });
+      onSuccess();
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.response?.data?.error || "Failed to approve match",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(null);
+    }
+  };
+
+  const pendingMatches = matches.filter((m: any) => m.status === "scheduled");
+
+  return (
+    <div className="space-y-4">
+      {pendingMatches.length === 0 ? (
+        <p className="text-muted-foreground text-center py-4">No pending matches to approve</p>
+      ) : (
+        pendingMatches.slice(0, 10).map((match: any) => (
+          <Card key={match.id}>
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="font-semibold">{match.homeTeam?.name} vs {match.awayTeam?.name}</div>
+                  <div className="text-sm text-muted-foreground">
+                    {format(new Date(match.scheduledAt), "MMM dd, yyyy HH:mm")}
+                  </div>
+                </div>
+                <Button
+                  size="sm"
+                  onClick={() => handleApprove(match.id)}
+                  disabled={loading === match.id}
+                >
+                  {loading === match.id ? "Approving..." : "Approve"}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        ))
+      )}
+    </div>
+  );
+};
+
+// Edit Match Results Form Component
+const EditMatchResultsForm = ({ match, onSuccess }: { match: any; onSuccess: () => void }) => {
+  const [homeScore, setHomeScore] = useState(match?.homeScore?.toString() || "");
+  const [awayScore, setAwayScore] = useState(match?.awayScore?.toString() || "");
+  const [status, setStatus] = useState(match?.status || "scheduled");
+  const [loading, setLoading] = useState(false);
+  const { toast } = useToast();
+
+  const handleUpdate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+
+    try {
+      await adminApi.editMatchResults(match.id, {
+        homeScore: homeScore ? parseInt(homeScore) : undefined,
+        awayScore: awayScore ? parseInt(awayScore) : undefined,
+        status,
+      });
+      toast({
+        title: "Success",
+        description: "Match results updated successfully",
+      });
+      onSuccess();
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.response?.data?.error || "Failed to update match results",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <form onSubmit={handleUpdate} className="space-y-4">
+      <div className="grid grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <Label htmlFor="homeScore">{match?.homeTeam?.name} Score</Label>
+          <Input
+            id="homeScore"
+            type="number"
+            value={homeScore}
+            onChange={(e) => setHomeScore(e.target.value)}
+            placeholder="0"
+            min="0"
+          />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="awayScore">{match?.awayTeam?.name} Score</Label>
+          <Input
+            id="awayScore"
+            type="number"
+            value={awayScore}
+            onChange={(e) => setAwayScore(e.target.value)}
+            placeholder="0"
+            min="0"
+          />
+        </div>
+      </div>
+      <div className="space-y-2">
+        <Label htmlFor="matchStatus">Status</Label>
+        <Select value={status} onValueChange={setStatus}>
+          <SelectTrigger>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="scheduled">Scheduled</SelectItem>
+            <SelectItem value="in_progress">In Progress</SelectItem>
+            <SelectItem value="completed">Completed</SelectItem>
+            <SelectItem value="cancelled">Cancelled</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+      <Button type="submit" disabled={loading} className="w-full">
+        {loading ? "Updating..." : "Update Match Results"}
+      </Button>
+    </form>
+  );
+};
+
+// Announce Challenge Form Component
+const AnnounceChallengeForm = ({ onSuccess }: { onSuccess: () => void }) => {
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
+  const [difficulty, setDifficulty] = useState("beginner");
+  const [points, setPoints] = useState("100");
+  const [deadline, setDeadline] = useState("");
+  const [loading, setLoading] = useState(false);
+  const { toast } = useToast();
+
+  const handleAnnounce = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+
+    try {
+      const response = await adminApi.announceChallenge({
+        title,
+        description,
+        difficulty,
+        points: parseInt(points) || 100,
+        deadline: deadline || undefined,
+      });
+      toast({
+        title: "Success",
+        description: `Challenge announced! ${response.data.notificationsSent} notifications sent.`,
+      });
+      setTitle("");
+      setDescription("");
+      setDifficulty("beginner");
+      setPoints("100");
+      setDeadline("");
+      onSuccess();
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.response?.data?.error || "Failed to announce challenge",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <form onSubmit={handleAnnounce} className="space-y-4">
+      <div className="space-y-2">
+        <Label htmlFor="challengeTitle">Title *</Label>
+        <Input
+          id="challengeTitle"
+          type="text"
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          required
+          placeholder="Challenge title"
+        />
+      </div>
+      <div className="space-y-2">
+        <Label htmlFor="challengeDescription">Description *</Label>
+        <Textarea
+          id="challengeDescription"
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
+          required
+          placeholder="Challenge description and requirements"
+          rows={4}
+        />
+      </div>
+      <div className="grid grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <Label htmlFor="challengeDifficulty">Difficulty *</Label>
+          <Select value={difficulty} onValueChange={setDifficulty}>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="beginner">Beginner</SelectItem>
+              <SelectItem value="amateur">Amateur</SelectItem>
+              <SelectItem value="regular">Regular</SelectItem>
+              <SelectItem value="professional">Professional</SelectItem>
+              <SelectItem value="legendary">Legendary</SelectItem>
+              <SelectItem value="national">National</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="challengePoints">Points</Label>
+          <Input
+            id="challengePoints"
+            type="number"
+            value={points}
+            onChange={(e) => setPoints(e.target.value)}
+            placeholder="100"
+            min="1"
+          />
+        </div>
+      </div>
+      <div className="space-y-2">
+        <Label htmlFor="challengeDeadline">Deadline (Optional)</Label>
+        <Input
+          id="challengeDeadline"
+          type="datetime-local"
+          value={deadline}
+          onChange={(e) => setDeadline(e.target.value)}
+        />
+      </div>
+      <Button type="submit" disabled={loading} className="w-full">
+        {loading ? "Announcing..." : "Announce Challenge"}
+      </Button>
+    </form>
+  );
+};
+
+// Broadcast Message Form Component
+const BroadcastMessageForm = ({ allUsers, onSuccess }: { allUsers: any[]; onSuccess: () => void }) => {
+  const [title, setTitle] = useState("");
+  const [message, setMessage] = useState("");
+  const [recipientType, setRecipientType] = useState("all");
+  const [selectedRecipients, setSelectedRecipients] = useState<string[]>([]);
+  const [loading, setLoading] = useState(false);
+  const { toast } = useToast();
+
+  const handleBroadcast = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+
+    try {
+      const messageData: any = {
+        title,
+        message,
+      };
+
+      if (recipientType === "specific") {
+        messageData.recipients = selectedRecipients;
+      } else {
+        messageData.recipientType = recipientType;
+      }
+
+      const response = await adminApi.broadcastMessage(messageData);
+      toast({
+        title: "Success",
+        description: `Message sent to ${response.data.recipientsCount} recipients!`,
+      });
+      setTitle("");
+      setMessage("");
+      setRecipientType("all");
+      setSelectedRecipients([]);
+      onSuccess();
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.response?.data?.error || "Failed to broadcast message",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <form onSubmit={handleBroadcast} className="space-y-4">
+      <div className="space-y-2">
+        <Label htmlFor="messageTitle">Title *</Label>
+        <Input
+          id="messageTitle"
+          type="text"
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          required
+          placeholder="Message title"
+        />
+      </div>
+      <div className="space-y-2">
+        <Label htmlFor="messageContent">Message *</Label>
+        <Textarea
+          id="messageContent"
+          value={message}
+          onChange={(e) => setMessage(e.target.value)}
+          required
+          placeholder="Your message content"
+          rows={6}
+        />
+      </div>
+      <div className="space-y-2">
+        <Label htmlFor="recipientType">Recipients *</Label>
+        <Select value={recipientType} onValueChange={setRecipientType}>
+          <SelectTrigger>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Users</SelectItem>
+            <SelectItem value="player">All Players</SelectItem>
+            <SelectItem value="coach">All Coaches</SelectItem>
+            <SelectItem value="school_admin">All School Admins</SelectItem>
+            <SelectItem value="judge">All Judges</SelectItem>
+            <SelectItem value="sponsor">All Sponsors</SelectItem>
+            <SelectItem value="specific">Select Specific Users</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+      {recipientType === "specific" && (
+        <div className="space-y-2">
+          <Label>Select Recipients</Label>
+          <div className="max-h-60 overflow-y-auto border rounded-lg p-2 space-y-2">
+            {allUsers.map((user: any) => (
+              <div key={user.id} className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  id={`user-${user.id}`}
+                  checked={selectedRecipients.includes(user.id)}
+                  onChange={(e) => {
+                    if (e.target.checked) {
+                      setSelectedRecipients([...selectedRecipients, user.id]);
+                    } else {
+                      setSelectedRecipients(selectedRecipients.filter(id => id !== user.id));
+                    }
+                  }}
+                />
+                <label htmlFor={`user-${user.id}`} className="text-sm cursor-pointer">
+                  {user.fullName} ({user.email}) - {user.role}
+                </label>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+      <Button type="submit" disabled={loading || (recipientType === "specific" && selectedRecipients.length === 0)} className="w-full">
+        {loading ? "Sending..." : <><Send className="mr-2 h-4 w-4" />Broadcast Message</>}
+      </Button>
+    </form>
+  );
+};
+
 const AdminDashboard = () => {
   const navigate = useNavigate();
   const { user, isAuthenticated } = useAuthStore();
@@ -479,7 +1034,7 @@ const AdminDashboard = () => {
 
   // ALL HOOKS MUST BE CALLED FIRST - before any conditional returns
   // Fetch dashboard data
-  const { data: dashboardData, isLoading: dashboardLoading, refetch: refetchDashboard } = useQuery({
+  const { data: dashboardData, isLoading: dashboardLoading, error: dashboardError, refetch: refetchDashboard } = useQuery({
     queryKey: ["adminDashboard"],
     queryFn: async () => {
       const response = await dashboardApi.getAdminDashboard();
@@ -487,6 +1042,7 @@ const AdminDashboard = () => {
     },
     enabled: isAuthenticated && user?.role === "admin",
     refetchInterval: 30000,
+    retry: 1,
   });
 
   const { data: leaderboard } = useQuery({
@@ -626,6 +1182,7 @@ const AdminDashboard = () => {
     { id: "sponsors", label: "Sponsors", icon: DollarSign },
     { id: "matches", label: "Matches", icon: Calendar },
     { id: "users", label: "All Users", icon: Users },
+    { id: "messaging", label: "Messaging", icon: MessageSquare },
     { id: "settings", label: "Settings", icon: Settings },
   ];
 
@@ -650,21 +1207,21 @@ const AdminDashboard = () => {
       <Navbar />
       
       {/* Top Bar */}
-      <div className="border-b bg-card/50 backdrop-blur-sm sticky top-16 z-30">
+      <div className="border-b bg-white/95 backdrop-blur-sm sticky top-16 z-30 mt-16">
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
-              <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center text-xl font-bold">
+              <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center text-xl font-bold text-[#1A1A1A]">
                 {user?.fullName?.charAt(0) || "A"}
               </div>
               <div>
-                <div className="font-semibold">League Admin</div>
-                <div className="text-sm text-muted-foreground">Master Control Room</div>
+                <div className="font-semibold text-[#1A1A1A]">League Admin</div>
+                <div className="text-sm text-[#4A4A4A]">Master Control Room</div>
               </div>
             </div>
             <div className="flex items-center gap-4">
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-[#4A4A4A]" />
                 <Input
                   placeholder="Quick search..."
                   value={searchQuery}
@@ -790,22 +1347,78 @@ const AdminDashboard = () => {
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-2">
-                      <Button className="w-full justify-start" variant="outline">
-                        <Plus className="mr-2 h-4 w-4" />
-                        Add School
-                      </Button>
-                      <Button className="w-full justify-start" variant="outline">
-                        <Plus className="mr-2 h-4 w-4" />
-                        Add User
-                      </Button>
-                      <Button className="w-full justify-start" variant="outline">
-                        <ArrowUp className="mr-2 h-4 w-4" />
-                        Process Promotions
-                      </Button>
-                      <Button className="w-full justify-start" variant="outline">
-                        <ArrowDown className="mr-2 h-4 w-4" />
-                        Process Relegations
-                      </Button>
+                      <Dialog>
+                        <DialogTrigger asChild>
+                          <Button className="w-full justify-start" variant="outline">
+                            <Plus className="mr-2 h-4 w-4" />
+                            Add School
+                          </Button>
+                        </DialogTrigger>
+                        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+                          <DialogHeader>
+                            <DialogTitle>Add New School</DialogTitle>
+                            <DialogDescription>Register a new school in the league</DialogDescription>
+                          </DialogHeader>
+                          <CreateSchoolForm onSuccess={() => {
+                            refetchDashboard();
+                            queryClient.invalidateQueries({ queryKey: ["adminDashboard"] });
+                          }} />
+                        </DialogContent>
+                      </Dialog>
+                      <Dialog>
+                        <DialogTrigger asChild>
+                          <Button className="w-full justify-start" variant="outline">
+                            <Plus className="mr-2 h-4 w-4" />
+                            Add User
+                          </Button>
+                        </DialogTrigger>
+                        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+                          <DialogHeader>
+                            <DialogTitle>Create New User</DialogTitle>
+                            <DialogDescription>Create a new user account with a specific role</DialogDescription>
+                          </DialogHeader>
+                          <CreateUserForm onSuccess={() => {
+                            refetchUsers();
+                            queryClient.invalidateQueries({ queryKey: ["adminDashboard"] });
+                          }} />
+                        </DialogContent>
+                      </Dialog>
+                      <Dialog>
+                        <DialogTrigger asChild>
+                          <Button className="w-full justify-start" variant="outline">
+                            <ArrowUp className="mr-2 h-4 w-4" />
+                            Process Promotions
+                          </Button>
+                        </DialogTrigger>
+                        <DialogContent>
+                          <DialogHeader>
+                            <DialogTitle>Process Bulk Promotions</DialogTitle>
+                            <DialogDescription>Promote eligible schools to the next tier</DialogDescription>
+                          </DialogHeader>
+                          <BulkPromotionsRelegationsForm initialAction="promote" onSuccess={() => {
+                            refetchDashboard();
+                            queryClient.invalidateQueries({ queryKey: ["adminDashboard"] });
+                          }} />
+                        </DialogContent>
+                      </Dialog>
+                      <Dialog>
+                        <DialogTrigger asChild>
+                          <Button className="w-full justify-start" variant="outline">
+                            <ArrowDown className="mr-2 h-4 w-4" />
+                            Process Relegations
+                          </Button>
+                        </DialogTrigger>
+                        <DialogContent>
+                          <DialogHeader>
+                            <DialogTitle>Process Bulk Relegations</DialogTitle>
+                            <DialogDescription>Relegate eligible schools to the previous tier</DialogDescription>
+                          </DialogHeader>
+                          <BulkPromotionsRelegationsForm initialAction="relegate" onSuccess={() => {
+                            refetchDashboard();
+                            queryClient.invalidateQueries({ queryKey: ["adminDashboard"] });
+                          }} />
+                        </DialogContent>
+                      </Dialog>
                     </div>
                   </CardContent>
                 </Card>
@@ -816,22 +1429,95 @@ const AdminDashboard = () => {
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-2">
-                      <Button className="w-full justify-start" variant="outline">
-                        <CheckCircle className="mr-2 h-4 w-4" />
-                        Approve Matches
-                      </Button>
-                      <Button className="w-full justify-start" variant="outline">
-                        <FileText className="mr-2 h-4 w-4" />
-                        Edit Match Results
-                      </Button>
-                      <Button className="w-full justify-start" variant="outline">
-                        <Target className="mr-2 h-4 w-4" />
-                        Announce Challenge
-                      </Button>
-                      <Button className="w-full justify-start" variant="outline">
-                        <Bell className="mr-2 h-4 w-4" />
-                        Broadcast Announcement
-                      </Button>
+                      <Dialog>
+                        <DialogTrigger asChild>
+                          <Button className="w-full justify-start" variant="outline">
+                            <CheckCircle className="mr-2 h-4 w-4" />
+                            Approve Matches
+                          </Button>
+                        </DialogTrigger>
+                        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+                          <DialogHeader>
+                            <DialogTitle>Approve Pending Matches</DialogTitle>
+                            <DialogDescription>Review and approve scheduled matches</DialogDescription>
+                          </DialogHeader>
+                          <ApproveMatchesComponent matches={matches} onSuccess={() => {
+                            refetchDashboard();
+                            queryClient.invalidateQueries({ queryKey: ["adminDashboard"] });
+                          }} />
+                        </DialogContent>
+                      </Dialog>
+                      <Dialog>
+                        <DialogTrigger asChild>
+                          <Button className="w-full justify-start" variant="outline">
+                            <FileText className="mr-2 h-4 w-4" />
+                            Edit Match Results
+                          </Button>
+                        </DialogTrigger>
+                        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+                          <DialogHeader>
+                            <DialogTitle>Select Match to Edit</DialogTitle>
+                            <DialogDescription>Choose a match to edit its results</DialogDescription>
+                          </DialogHeader>
+                          <div className="space-y-2 max-h-96 overflow-y-auto">
+                            {matches.slice(0, 20).map((match: any) => (
+                              <Dialog key={match.id}>
+                                <DialogTrigger asChild>
+                                  <Button variant="outline" className="w-full justify-start">
+                                    {match.homeTeam?.name} vs {match.awayTeam?.name} - {format(new Date(match.scheduledAt), "MMM dd, yyyy")}
+                                  </Button>
+                                </DialogTrigger>
+                                <DialogContent>
+                                  <DialogHeader>
+                                    <DialogTitle>Edit Match Results</DialogTitle>
+                                    <DialogDescription>{match.homeTeam?.name} vs {match.awayTeam?.name}</DialogDescription>
+                                  </DialogHeader>
+                                  <EditMatchResultsForm match={match} onSuccess={() => {
+                                    refetchDashboard();
+                                    queryClient.invalidateQueries({ queryKey: ["adminDashboard"] });
+                                  }} />
+                                </DialogContent>
+                              </Dialog>
+                            ))}
+                          </div>
+                        </DialogContent>
+                      </Dialog>
+                      <Dialog>
+                        <DialogTrigger asChild>
+                          <Button className="w-full justify-start" variant="outline">
+                            <Target className="mr-2 h-4 w-4" />
+                            Announce Challenge
+                          </Button>
+                        </DialogTrigger>
+                        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+                          <DialogHeader>
+                            <DialogTitle>Announce New Challenge</DialogTitle>
+                            <DialogDescription>Create and announce a new coding challenge to all players</DialogDescription>
+                          </DialogHeader>
+                          <AnnounceChallengeForm onSuccess={() => {
+                            refetchDashboard();
+                            queryClient.invalidateQueries({ queryKey: ["adminDashboard"] });
+                          }} />
+                        </DialogContent>
+                      </Dialog>
+                      <Dialog>
+                        <DialogTrigger asChild>
+                          <Button className="w-full justify-start" variant="outline">
+                            <Bell className="mr-2 h-4 w-4" />
+                            Broadcast Announcement
+                          </Button>
+                        </DialogTrigger>
+                        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+                          <DialogHeader>
+                            <DialogTitle>Broadcast Message</DialogTitle>
+                            <DialogDescription>Send a message to selected users or all users in the system</DialogDescription>
+                          </DialogHeader>
+                          <BroadcastMessageForm allUsers={allUsers} onSuccess={() => {
+                            refetchDashboard();
+                            queryClient.invalidateQueries({ queryKey: ["adminDashboard"] });
+                          }} />
+                        </DialogContent>
+                      </Dialog>
                     </div>
                   </CardContent>
                 </Card>
@@ -851,38 +1537,15 @@ const AdminDashboard = () => {
                       Add School
                     </Button>
                   </DialogTrigger>
-                  <DialogContent>
+                  <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
                     <DialogHeader>
                       <DialogTitle>Add New School</DialogTitle>
                       <DialogDescription>Register a new school in the league</DialogDescription>
                     </DialogHeader>
-                    <div className="space-y-4">
-                      <div>
-                        <label className="text-sm font-medium">School Name</label>
-                        <Input placeholder="School name" />
-                      </div>
-                      <div>
-                        <label className="text-sm font-medium">Location</label>
-                        <Input placeholder="City, Country" />
-                      </div>
-                      <div>
-                        <label className="text-sm font-medium">Tier</label>
-                        <Select>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select tier" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="beginner">Beginner</SelectItem>
-                            <SelectItem value="amateur">Amateur</SelectItem>
-                            <SelectItem value="regular">Regular</SelectItem>
-                            <SelectItem value="professional">Professional</SelectItem>
-                            <SelectItem value="legendary">Legendary</SelectItem>
-                            <SelectItem value="national">National</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <Button className="w-full">Create School</Button>
-                    </div>
+                    <CreateSchoolForm onSuccess={() => {
+                      refetchDashboard();
+                      queryClient.invalidateQueries({ queryKey: ["adminDashboard"] });
+                    }} />
                   </DialogContent>
                 </Dialog>
               </div>
@@ -1496,6 +2159,168 @@ const AdminDashboard = () => {
                   </Card>
                 ))}
               </div>
+            </div>
+          )}
+
+          {activeMenu === "messaging" && (
+            <div>
+              <div className="flex items-center justify-between mb-6">
+                <div>
+                  <h2 className="text-3xl font-bold">Messaging Center</h2>
+                  <p className="text-muted-foreground mt-1">Send messages and announcements to users</p>
+                </div>
+                <Dialog>
+                  <DialogTrigger asChild>
+                    <Button>
+                      <Send className="mr-2 h-4 w-4" />
+                      Broadcast Message
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+                    <DialogHeader>
+                      <DialogTitle>Broadcast Message</DialogTitle>
+                      <DialogDescription>Send a message to selected users or all users in the system</DialogDescription>
+                    </DialogHeader>
+                    <BroadcastMessageForm allUsers={allUsers} onSuccess={() => {
+                      refetchUsers();
+                      queryClient.invalidateQueries({ queryKey: ["adminDashboard"] });
+                    }} />
+                  </DialogContent>
+                </Dialog>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Quick Broadcast</CardTitle>
+                    <CardDescription>Send messages to specific user groups</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-2">
+                      <Dialog>
+                        <DialogTrigger asChild>
+                          <Button className="w-full justify-start" variant="outline">
+                            <MessageSquare className="mr-2 h-4 w-4" />
+                            Message All Players
+                          </Button>
+                        </DialogTrigger>
+                        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+                          <DialogHeader>
+                            <DialogTitle>Broadcast to All Players</DialogTitle>
+                            <DialogDescription>Send a message to all players in the system</DialogDescription>
+                          </DialogHeader>
+                          <BroadcastMessageForm allUsers={allUsers.filter((u: any) => u.role === 'player')} onSuccess={() => {
+                            refetchUsers();
+                            queryClient.invalidateQueries({ queryKey: ["adminDashboard"] });
+                          }} />
+                        </DialogContent>
+                      </Dialog>
+                      <Dialog>
+                        <DialogTrigger asChild>
+                          <Button className="w-full justify-start" variant="outline">
+                            <MessageSquare className="mr-2 h-4 w-4" />
+                            Message All Coaches
+                          </Button>
+                        </DialogTrigger>
+                        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+                          <DialogHeader>
+                            <DialogTitle>Broadcast to All Coaches</DialogTitle>
+                            <DialogDescription>Send a message to all coaches in the system</DialogDescription>
+                          </DialogHeader>
+                          <BroadcastMessageForm allUsers={allUsers.filter((u: any) => u.role === 'coach')} onSuccess={() => {
+                            refetchUsers();
+                            queryClient.invalidateQueries({ queryKey: ["adminDashboard"] });
+                          }} />
+                        </DialogContent>
+                      </Dialog>
+                      <Dialog>
+                        <DialogTrigger asChild>
+                          <Button className="w-full justify-start" variant="outline">
+                            <MessageSquare className="mr-2 h-4 w-4" />
+                            Message All Schools
+                          </Button>
+                        </DialogTrigger>
+                        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+                          <DialogHeader>
+                            <DialogTitle>Broadcast to All School Admins</DialogTitle>
+                            <DialogDescription>Send a message to all school administrators</DialogDescription>
+                          </DialogHeader>
+                          <BroadcastMessageForm allUsers={allUsers.filter((u: any) => u.role === 'school_admin')} onSuccess={() => {
+                            refetchUsers();
+                            queryClient.invalidateQueries({ queryKey: ["adminDashboard"] });
+                          }} />
+                        </DialogContent>
+                      </Dialog>
+                      <Dialog>
+                        <DialogTrigger asChild>
+                          <Button className="w-full justify-start" variant="outline">
+                            <MessageSquare className="mr-2 h-4 w-4" />
+                            Message Everyone
+                          </Button>
+                        </DialogTrigger>
+                        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+                          <DialogHeader>
+                            <DialogTitle>Broadcast to Everyone</DialogTitle>
+                            <DialogDescription>Send a message to all users in the system</DialogDescription>
+                          </DialogHeader>
+                          <BroadcastMessageForm allUsers={allUsers} onSuccess={() => {
+                            refetchUsers();
+                            queryClient.invalidateQueries({ queryKey: ["adminDashboard"] });
+                          }} />
+                        </DialogContent>
+                      </Dialog>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Message Statistics</CardTitle>
+                    <CardDescription>Recent messaging activity</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-4">
+                      <div className="flex justify-between">
+                        <span className="text-sm text-muted-foreground">Total Users</span>
+                        <span className="font-bold">{allUsers.length}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-sm text-muted-foreground">Players</span>
+                        <span className="font-bold">{allUsers.filter((u: any) => u.role === 'player').length}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-sm text-muted-foreground">Coaches</span>
+                        <span className="font-bold">{allUsers.filter((u: any) => u.role === 'coach').length}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-sm text-muted-foreground">School Admins</span>
+                        <span className="font-bold">{allUsers.filter((u: any) => u.role === 'school_admin').length}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-sm text-muted-foreground">Judges</span>
+                        <span className="font-bold">{allUsers.filter((u: any) => u.role === 'judge').length}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-sm text-muted-foreground">Sponsors</span>
+                        <span className="font-bold">{allUsers.filter((u: any) => u.role === 'sponsor').length}</span>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle>Send Custom Message</CardTitle>
+                  <CardDescription>Select specific recipients or user groups</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <BroadcastMessageForm allUsers={allUsers} onSuccess={() => {
+                    refetchUsers();
+                    queryClient.invalidateQueries({ queryKey: ["adminDashboard"] });
+                  }} />
+                </CardContent>
+              </Card>
             </div>
           )}
 

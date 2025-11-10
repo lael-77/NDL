@@ -23,10 +23,37 @@ const server = http.createServer(app);
 // Initialize Socket.io
 initializeSocket(server);
 
-// Middleware
+// Middleware - CORS configuration
+// Allow both localhost (development) and Vercel (production) origins
+const allowedOrigins = [
+  'http://localhost:8080',
+  'http://localhost:3000',
+  'http://localhost:5173',
+  process.env.CLIENT_URL,
+].filter(Boolean); // Remove any undefined values
+
 app.use(cors({
-  origin: process.env.CLIENT_URL || "http://localhost:8080",
+  origin: function (origin, callback) {
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) return callback(null, true);
+    
+    // In development mode, allow all localhost origins
+    if (process.env.NODE_ENV === 'development') {
+      if (origin.includes('localhost') || origin.includes('127.0.0.1')) {
+        return callback(null, true);
+      }
+    }
+    
+    // Check if origin is in allowed list
+    if (allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error(`Not allowed by CORS. Origin: ${origin}`));
+    }
+  },
   credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
 }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -67,9 +94,24 @@ app.get('/', (req, res) => {
   });
 });
 
-// Health check
-app.get('/health', (req, res) => {
-  res.json({ status: 'ok', message: 'NDL Server is running' });
+// Health check with database status
+app.get('/health', async (req, res) => {
+  try {
+    const db = (await import('./services/database.js')).default;
+    const health = await db.healthCheck();
+    
+    res.json({ 
+      status: 'ok', 
+      message: 'NDL Server is running',
+      databases: health
+    });
+  } catch (error) {
+    res.json({ 
+      status: 'ok', 
+      message: 'NDL Server is running',
+      databases: { error: error.message }
+    });
+  }
 });
 
 // API Routes

@@ -1,6 +1,8 @@
-import { PrismaClient } from '@prisma/client';
+import db from '../services/database.js';
 
-const prisma = new PrismaClient();
+// Use the database service (primary database)
+// The db object has proxy properties for all Prisma models (db.team, db.profile, etc.)
+const prisma = db;
 
 // Get global leaderboard
 export const getLeaderboard = async (req, res) => {

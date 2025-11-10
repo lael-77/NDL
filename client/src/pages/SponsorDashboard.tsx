@@ -89,22 +89,22 @@ const SponsorDashboard = () => {
       <Navbar />
       
       {/* Top Bar */}
-      <div className="border-b bg-card/50 backdrop-blur-sm sticky top-16 z-30">
+      <div className="border-b bg-white/95 backdrop-blur-sm sticky top-16 z-30 mt-16">
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
-              <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center text-xl font-bold">
+              <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center text-xl font-bold text-[#1A1A1A]">
                 {user?.fullName?.charAt(0) || "S"}
               </div>
               <div>
-                <div className="font-semibold">{user?.fullName || "Sponsor"}</div>
-                <div className="text-sm text-muted-foreground">
+                <div className="font-semibold text-[#1A1A1A]">{user?.fullName || "Sponsor"}</div>
+                <div className="text-sm text-[#4A4A4A]">
                   Sponsored Tier(s): Professional, Legendary
                 </div>
               </div>
             </div>
             <div className="flex items-center gap-4">
-              <Badge variant="outline" className="flex items-center gap-2">
+              <Badge variant="outline" className="flex items-center gap-2 text-[#1A1A1A]">
                 <Building2 className="h-4 w-4" />
                 {sponsorStats.schoolsSponsored} Schools
               </Badge>
@@ -357,7 +357,7 @@ const SponsorDashboard = () => {
 
           {activeMenu === "media" && (
             <div>
-              <h2 className="text-3xl font-bold mb-6">Media Exposure</h2>
+              <h2 className="text-3xl font-bold mb-6 text-[#1A1A1A]">Media Exposure</h2>
               <Card>
                 <CardHeader>
                   <div className="flex items-center justify-between">

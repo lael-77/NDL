@@ -641,3 +641,414 @@ export const removeFromRole = async (req, res) => {
   }
 };
 
+// Create school (admin only)
+export const createSchool = async (req, res) => {
+  try {
+    const userId = req.user?.userId || req.user?.id;
+    
+    if (!(await isAdmin(userId))) {
+      return res.status(403).json({ error: 'Only admins can create schools' });
+    }
+
+    const { name, location, tier, motto, sponsor } = req.body;
+
+    if (!name) {
+      return res.status(400).json({ error: 'School name is required' });
+    }
+
+    // Check if school already exists
+    const existingSchool = await prisma.school.findFirst({
+      where: { name },
+    });
+
+    if (existingSchool) {
+      return res.status(400).json({ error: 'School with this name already exists' });
+    }
+
+    const school = await prisma.school.create({
+      data: {
+        name,
+        location: location || null,
+        tier: tier || 'beginner',
+        motto: motto || null,
+        sponsor: sponsor || null,
+      },
+    });
+
+    res.status(201).json({
+      message: 'School created successfully',
+      school,
+    });
+  } catch (error) {
+    console.error('Error creating school:', error);
+    res.status(500).json({ error: error.message });
+  }
+};
+
+// Process bulk promotions/relegations (admin only)
+export const processBulkPromotionsRelegations = async (req, res) => {
+  try {
+    const userId = req.user?.userId || req.user?.id;
+    
+    if (!(await isAdmin(userId))) {
+      return res.status(403).json({ error: 'Only admins can process bulk promotions/relegations' });
+    }
+
+    const { action, tier } = req.body; // action: 'promote' or 'relegate', tier: optional specific tier
+
+    if (!action || !['promote', 'relegate'].includes(action)) {
+      return res.status(400).json({ error: 'Action must be "promote" or "relegate"' });
+    }
+
+    const tierOrder = ['beginner', 'amateur', 'regular', 'professional', 'legendary', 'national'];
+    let schoolsToProcess = [];
+
+    if (tier) {
+      // Process schools in a specific tier
+      schoolsToProcess = await prisma.school.findMany({
+        where: { tier },
+      });
+    } else {
+      // Process all schools (except those at max/min tier)
+      const excludeTier = action === 'promote' ? 'national' : 'beginner';
+      schoolsToProcess = await prisma.school.findMany({
+        where: {
+          tier: { not: excludeTier },
+        },
+      });
+    }
+
+    const results = {
+      promoted: [],
+      relegated: [],
+      skipped: [],
+    };
+
+    for (const school of schoolsToProcess) {
+      const currentIndex = tierOrder.indexOf(school.tier);
+      
+      if (action === 'promote' && currentIndex < tierOrder.length - 1) {
+        const newTier = tierOrder[currentIndex + 1];
+        await prisma.school.update({
+          where: { id: school.id },
+          data: { tier: newTier },
+        });
+        await prisma.team.updateMany({
+          where: { schoolId: school.id },
+          data: { tier: newTier },
+        });
+        results.promoted.push({ id: school.id, name: school.name, oldTier: school.tier, newTier });
+      } else if (action === 'relegate' && currentIndex > 0) {
+        const newTier = tierOrder[currentIndex - 1];
+        await prisma.school.update({
+          where: { id: school.id },
+          data: { tier: newTier },
+        });
+        await prisma.team.updateMany({
+          where: { schoolId: school.id },
+          data: { tier: newTier },
+        });
+        results.relegated.push({ id: school.id, name: school.name, oldTier: school.tier, newTier });
+      } else {
+        results.skipped.push({ id: school.id, name: school.name, tier: school.tier, reason: `Cannot ${action} from ${school.tier}` });
+      }
+    }
+
+    res.json({
+      message: `Bulk ${action} processed successfully`,
+      results,
+      summary: {
+        total: schoolsToProcess.length,
+        processed: results.promoted.length + results.relegated.length,
+        skipped: results.skipped.length,
+      },
+    });
+  } catch (error) {
+    console.error('Error processing bulk promotions/relegations:', error);
+    res.status(500).json({ error: error.message });
+  }
+};
+
+// Approve match (admin only)
+export const approveMatch = async (req, res) => {
+  try {
+    const userId = req.user?.userId || req.user?.id;
+    
+    if (!(await isAdmin(userId))) {
+      return res.status(403).json({ error: 'Only admins can approve matches' });
+    }
+
+    const { id } = req.params;
+
+    const match = await prisma.match.findUnique({
+      where: { id },
+      include: {
+        homeTeam: true,
+        awayTeam: true,
+      },
+    });
+
+    if (!match) {
+      return res.status(404).json({ error: 'Match not found' });
+    }
+
+    if (match.status !== 'scheduled') {
+      return res.status(400).json({ error: 'Only scheduled matches can be approved' });
+    }
+
+    // Match is already scheduled, approval just confirms it
+    // You could add an 'approved' field if needed
+    const updatedMatch = await prisma.match.update({
+      where: { id },
+      data: {
+        status: 'scheduled', // Keep as scheduled, or change to 'approved' if you add that status
+      },
+      include: {
+        homeTeam: true,
+        awayTeam: true,
+        winner: true,
+        arena: true,
+      },
+    });
+
+    // Emit socket event
+    emitMatchUpdate(id, updatedMatch);
+
+    res.json({
+      message: 'Match approved successfully',
+      match: updatedMatch,
+    });
+  } catch (error) {
+    console.error('Error approving match:', error);
+    res.status(500).json({ error: error.message });
+  }
+};
+
+// Edit match results (admin only)
+export const editMatchResults = async (req, res) => {
+  try {
+    const userId = req.user?.userId || req.user?.id;
+    
+    if (!(await isAdmin(userId))) {
+      return res.status(403).json({ error: 'Only admins can edit match results' });
+    }
+
+    const { id } = req.params;
+    const { homeScore, awayScore, winnerId, status } = req.body;
+
+    const match = await prisma.match.findUnique({
+      where: { id },
+      include: {
+        homeTeam: true,
+        awayTeam: true,
+      },
+    });
+
+    if (!match) {
+      return res.status(404).json({ error: 'Match not found' });
+    }
+
+    const updateData = {};
+    if (homeScore !== undefined) updateData.homeScore = parseInt(homeScore);
+    if (awayScore !== undefined) updateData.awayScore = parseInt(awayScore);
+    if (status) updateData.status = status;
+
+    // Determine winner if scores are provided
+    if (homeScore !== undefined && awayScore !== undefined) {
+      if (homeScore > awayScore) {
+        updateData.winnerId = match.homeTeamId;
+      } else if (awayScore > homeScore) {
+        updateData.winnerId = match.awayTeamId;
+      } else {
+        updateData.winnerId = null; // Draw
+      }
+    } else if (winnerId) {
+      updateData.winnerId = winnerId;
+    }
+
+    // If marking as completed, update team stats
+    if (status === 'completed' && match.status !== 'completed') {
+      const { calculateMatchPoints } = await import('../services/scoring.js');
+      await calculateMatchPoints(match.id);
+    }
+
+    const updatedMatch = await prisma.match.update({
+      where: { id },
+      data: updateData,
+      include: {
+        homeTeam: true,
+        awayTeam: true,
+        winner: true,
+        arena: true,
+      },
+    });
+
+    // Emit socket event
+    emitMatchUpdate(id, updatedMatch);
+
+    res.json({
+      message: 'Match results updated successfully',
+      match: updatedMatch,
+    });
+  } catch (error) {
+    console.error('Error editing match results:', error);
+    res.status(500).json({ error: error.message });
+  }
+};
+
+// Announce challenge (admin only)
+export const announceChallenge = async (req, res) => {
+  try {
+    const userId = req.user?.userId || req.user?.id;
+    
+    if (!(await isAdmin(userId))) {
+      return res.status(403).json({ error: 'Only admins can announce challenges' });
+    }
+
+    const { title, description, difficulty, points, deadline } = req.body;
+
+    if (!title || !description || !difficulty) {
+      return res.status(400).json({ error: 'Title, description, and difficulty are required' });
+    }
+
+    const challenge = await prisma.challenge.create({
+      data: {
+        title,
+        description,
+        difficulty,
+        points: points || 100,
+        deadline: deadline ? new Date(deadline) : null,
+      },
+    });
+
+    // Create notifications for all players
+    const players = await prisma.profile.findMany({
+      where: { role: 'player' },
+    });
+
+    const notifications = players.map(player => ({
+      userId: player.id,
+      title: 'New Challenge Available',
+      message: `A new ${difficulty} tier challenge has been announced: ${title}`,
+      type: 'challenge',
+      link: `/challenges/${challenge.id}`,
+    }));
+
+    await prisma.notification.createMany({
+      data: notifications,
+    });
+
+    // Emit socket event for real-time updates
+    const { getIO } = await import('../services/socket.js');
+    const io = getIO();
+    if (io) {
+      io.emit('challenge:new', {
+        challenge,
+        message: 'A new challenge has been announced',
+      });
+    }
+
+    res.status(201).json({
+      message: 'Challenge announced successfully',
+      challenge,
+      notificationsSent: notifications.length,
+    });
+  } catch (error) {
+    console.error('Error announcing challenge:', error);
+    res.status(500).json({ error: error.message });
+  }
+};
+
+// Broadcast message/announcement (admin only)
+export const broadcastMessage = async (req, res) => {
+  try {
+    const userId = req.user?.userId || req.user?.id;
+    
+    if (!(await isAdmin(userId))) {
+      return res.status(403).json({ error: 'Only admins can broadcast messages' });
+    }
+
+    const { title, message, recipients, recipientType } = req.body;
+
+    if (!title || !message) {
+      return res.status(400).json({ error: 'Title and message are required' });
+    }
+
+    let targetUsers = [];
+
+    // Determine recipients
+    if (recipients && recipients.length > 0) {
+      // Specific users selected
+      targetUsers = await prisma.profile.findMany({
+        where: {
+          id: { in: recipients },
+        },
+      });
+    } else if (recipientType) {
+      // All users of a specific type
+      if (recipientType === 'all') {
+        targetUsers = await prisma.profile.findMany();
+      } else {
+        targetUsers = await prisma.profile.findMany({
+          where: { role: recipientType },
+        });
+      }
+    } else {
+      // Default: send to all users
+      targetUsers = await prisma.profile.findMany();
+    }
+
+    // Create notifications for all recipients
+    const notifications = targetUsers.map(user => ({
+      userId: user.id,
+      title,
+      message,
+      type: 'announcement',
+      link: null,
+    }));
+
+    await prisma.notification.createMany({
+      data: notifications,
+    });
+
+    // Create messages for all recipients
+    const sender = await prisma.profile.findUnique({
+      where: { id: userId },
+    });
+
+    const messages = targetUsers.map(user => ({
+      senderId: userId,
+      receiverId: user.id,
+      subject: title,
+      content: message,
+    }));
+
+    await prisma.message.createMany({
+      data: messages,
+    });
+
+    // Emit socket event for real-time notifications
+    const { getIO } = await import('../services/socket.js');
+    const io = getIO();
+    if (io) {
+      targetUsers.forEach(user => {
+        io.to(`user:${user.id}`).emit('notification:new', {
+          title,
+          message,
+          type: 'announcement',
+        });
+      });
+    }
+
+    res.json({
+      message: 'Message broadcast successfully',
+      recipientsCount: targetUsers.length,
+      notificationsCreated: notifications.length,
+      messagesCreated: messages.length,
+    });
+  } catch (error) {
+    console.error('Error broadcasting message:', error);
+    res.status(500).json({ error: error.message });
+  }
+};
+
