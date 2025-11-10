@@ -1,9 +1,10 @@
-import { PrismaClient } from '@prisma/client';
+import db from '../services/database.js';
 import { emitMatchUpdate, emitMatchLive } from '../services/socket.js';
 import { calculateMatchPoints } from '../services/scoring.js';
 import { canManageMatch } from '../utils/permissions.js';
 
-const prisma = new PrismaClient();
+// Use the database service (primary database)
+const prisma = db;
 
 // Get all matches
 export const getMatches = async (req, res) => {

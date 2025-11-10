@@ -1,7 +1,8 @@
-import { PrismaClient } from '@prisma/client';
+import db from '../services/database.js';
 import bcrypt from 'bcryptjs';
 
-const prisma = new PrismaClient();
+// Use the database service (primary database)
+const prisma = db;
 
 // Helper function to check if user is admin
 const isAdmin = async (userId) => {

@@ -1,4 +1,4 @@
-import { PrismaClient } from '@prisma/client';
+import db from '../services/database.js';
 import bcrypt from 'bcryptjs';
 import {
   getManagedStudents,
@@ -6,7 +6,8 @@ import {
   canAccessSchool,
 } from '../middleware/rbac.js';
 
-const prisma = new PrismaClient();
+// Use the database service (primary database)
+const prisma = db;
 
 // ============================================
 // LEAGUE ADMIN MANAGEMENT

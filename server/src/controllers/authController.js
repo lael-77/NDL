@@ -1,9 +1,10 @@
-import { PrismaClient } from '@prisma/client';
+import db from '../services/database.js';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
 
-const prisma = new PrismaClient();
+// Use the database service (primary database)
+const prisma = db;
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
 
 // Register a new user

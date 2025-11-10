@@ -1,8 +1,9 @@
-import { PrismaClient } from '@prisma/client';
+import db from '../services/database.js';
 import { emitTeamUpdate } from '../services/socket.js';
 import { canManageTeam } from '../utils/permissions.js';
 
-const prisma = new PrismaClient();
+// Use the database service (primary database)
+const prisma = db;
 
 // Get all teams
 export const getTeams = async (req, res) => {

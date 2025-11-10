@@ -1,6 +1,7 @@
-import { PrismaClient } from '@prisma/client';
+import db from '../services/database.js';
 
-const prisma = new PrismaClient();
+// Use the database service (primary database)
+const prisma = db;
 
 // Get player dashboard data
 export const getPlayerDashboard = async (req, res) => {
