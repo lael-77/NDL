@@ -19,11 +19,13 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-// Create HTTP server
+// Create HTTP server (only for local development)
 const server = http.createServer(app);
 
-// Initialize Socket.io
-initializeSocket(server);
+// Initialize Socket.io (only for local development - not supported in serverless)
+if (process.env.VERCEL !== '1' && process.env.NODE_ENV !== 'production') {
+  initializeSocket(server);
+}
 
 // Middleware - CORS configuration
 // Allow both localhost (development) and Vercel (production) origins
@@ -149,10 +151,20 @@ app.use((req, res) => {
   res.status(404).json({ error: 'Route not found' });
 });
 
-server.listen(PORT, () => {
-  console.log(`🚀 NDL Server running on http://localhost:${PORT}`);
-  console.log(`📡 Socket.io server initialized`);
-});
+// Only start server if not in Vercel (serverless) environment
+if (process.env.VERCEL !== '1') {
+  server.listen(PORT, () => {
+    console.log(`🚀 NDL Server running on http://localhost:${PORT}`);
+    if (process.env.NODE_ENV !== 'production') {
+      console.log(`📡 Socket.io server initialized`);
+    }
+  });
+}
 
+// Export for Vercel serverless functions
+// Vercel will automatically wrap this Express app as a serverless function
 export default app;
+
+// Also export as handler for explicit Vercel compatibility
+export const handler = app;
 
