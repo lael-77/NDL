@@ -11,6 +11,7 @@ import adminRoutes from './routes/admin.js';
 import managementRoutes from './routes/management.js';
 import permissionRoutes from './routes/permissions.js';
 import judgeRoutes from './routes/judge.js';
+import testDbRoutes from './routes/test-db.js';
 import { initializeSocket } from './services/socket.js';
 
 dotenv.config();
@@ -88,6 +89,10 @@ app.get('/', (req, res) => {
       leaderboard: {
         global: 'GET /api/leaderboard',
         byTier: 'GET /api/leaderboard?tier=BRONZE|SILVER|GOLD|PLATINUM|DIAMOND'
+      },
+      test: {
+        db: 'GET /api/test-db',
+        dbTable: 'GET /api/test-db/table/:tableName'
       }
     },
     socketio: 'ws://localhost:3001',
@@ -121,11 +126,14 @@ app.use('/api/matches', matchesRoutes);
 app.use('/api/teams', teamsRoutes);
 app.use('/api/leaderboard', leaderboardRoutes);
 app.use('/api/dashboard', dashboardRoutes);
+console.log('✅ [Server] Dashboard routes mounted at /api/dashboard');
 app.use('/api/admin', adminRoutes);
 app.use('/api/management', managementRoutes);
 app.use('/api/permissions', permissionRoutes);
 app.use('/api/judge', judgeRoutes);
 console.log('✅ [Server] Judge routes mounted at /api/judge');
+app.use('/api/test-db', testDbRoutes);
+console.log('✅ [Server] Test DB routes mounted at /api/test-db');
 
 // Error handling middleware
 app.use((err, req, res, next) => {
