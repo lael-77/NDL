@@ -1,5 +1,5 @@
 import db from '../services/database.js';
-import { emitTeamUpdate } from '../services/socket.js';
+import { emitTeamUpdate, emitLeaderboardUpdate } from '../services/socket.js';
 import { canManageTeam } from '../utils/permissions.js';
 
 // Use the database service (primary database)
@@ -135,6 +135,11 @@ export const updateTeam = async (req, res) => {
     
     // Emit socket event for team update
     emitTeamUpdate(id, team);
+    
+    // Emit leaderboard update if points, wins, or losses changed
+    if (points !== undefined || wins !== undefined || losses !== undefined) {
+      emitLeaderboardUpdate({ updated: true, timestamp: new Date() });
+    }
     
     res.json(team);
   } catch (error) {

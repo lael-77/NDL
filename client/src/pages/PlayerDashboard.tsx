@@ -19,12 +19,16 @@ import {
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { format, differenceInHours } from "date-fns";
+import { useRealtimeUpdates } from "@/hooks/useRealtimeUpdates";
 
 const PlayerDashboard = () => {
   const navigate = useNavigate();
   const { user, isAuthenticated } = useAuthStore();
   const { fetchMatches } = useMatchesStore();
   const [activeMenu, setActiveMenu] = useState("home");
+
+  // Set up real-time updates via WebSocket
+  useRealtimeUpdates();
 
   // Fetch dashboard data
   const { data: dashboardData, isLoading: dashboardLoading, error: dashboardError } = useQuery({
@@ -39,7 +43,7 @@ const PlayerDashboard = () => {
       }
     },
     enabled: isAuthenticated,
-    refetchInterval: 30000, // Refetch every 30 seconds
+    // Real-time updates handled via WebSocket (no polling)
   });
 
   const { data: leaderboard } = useQuery({

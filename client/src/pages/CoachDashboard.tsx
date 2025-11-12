@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
+import { useRealtimeUpdates } from "@/hooks/useRealtimeUpdates";
 
 const CoachDashboard = () => {
   const navigate = useNavigate();
@@ -27,6 +28,9 @@ const CoachDashboard = () => {
   const { fetchMatches } = useMatchesStore();
   const { toast } = useToast();
   const [activeMenu, setActiveMenu] = useState("overview");
+
+  // Set up real-time updates via WebSocket
+  useRealtimeUpdates();
 
   // Fetch dashboard data
   const { data: dashboardData, isLoading: dashboardLoading, refetch: refetchDashboard } = useQuery({
@@ -36,7 +40,7 @@ const CoachDashboard = () => {
       return response.data;
     },
     enabled: isAuthenticated,
-    refetchInterval: 30000,
+    // Real-time updates handled via WebSocket (no polling)
   });
 
   useEffect(() => {

@@ -498,7 +498,7 @@ async function main() {
     const homeScore = Math.floor(Math.random() * 3);
     const awayScore = Math.floor(Math.random() * 3);
 
-    await prisma.match.create({
+    const match = await prisma.match.create({
       data: {
         homeTeamId: homeTeam.id,
         awayTeamId: awayTeam.id,
@@ -509,6 +509,42 @@ async function main() {
         awayScore: awayScore,
       },
     });
+    matches.push(match);
+  }
+
+  // Assign judges to matches
+  console.log('👨‍⚖️  Assigning judges to matches...');
+  const judges = await prisma.profile.findMany({
+    where: { role: 'judge' },
+  });
+
+  if (judges.length > 0) {
+    // Get all matches (including the ones we just created)
+    const allMatches = await prisma.match.findMany();
+    
+    for (const match of allMatches) {
+      // Assign 1-2 judges per match (randomly)
+      const numJudges = Math.floor(Math.random() * 2) + 1; // 1 or 2 judges
+      const selectedJudges = judges
+        .sort(() => Math.random() - 0.5)
+        .slice(0, numJudges);
+
+      for (let i = 0; i < selectedJudges.length; i++) {
+        const judge = selectedJudges[i];
+        await prisma.matchJudge.create({
+          data: {
+            matchId: match.id,
+            judgeId: judge.id,
+            status: match.status === 'completed' ? 'accepted' : 'pending', // Auto-accept completed matches
+            isMain: i === 0, // First judge is main judge
+            respondedAt: match.status === 'completed' ? new Date() : null,
+          },
+        });
+      }
+    }
+    console.log(`   ✅ Assigned judges to ${allMatches.length} matches`);
+  } else {
+    console.log('   ⚠️  No judges found to assign');
   }
 
   console.log('✅ Seed completed successfully!');

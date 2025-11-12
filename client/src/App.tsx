@@ -31,8 +31,14 @@ import NotFound from "./pages/NotFound";
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      refetchOnWindowFocus: true,
-      refetchInterval: 30000, // Refetch every 30 seconds for live updates
+      refetchOnWindowFocus: true, // Refetch when user returns to the tab
+      refetchInterval: false, // Disable automatic polling - use WebSocket for real-time updates
+      staleTime: 2 * 60 * 1000, // Consider data fresh for 2 minutes (reduced for better UX)
+      cacheTime: 5 * 60 * 1000, // Keep unused data in cache for 5 minutes
+      refetchOnMount: true, // Always fetch data on mount (needed for initial load)
+      refetchOnReconnect: true, // Refetch when reconnecting to network
+      retry: 1, // Retry failed requests once
+      retryDelay: 1000, // Wait 1 second before retrying
     },
   },
 });

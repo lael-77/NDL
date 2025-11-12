@@ -10,6 +10,7 @@ import dashboardRoutes from './routes/dashboard.js';
 import adminRoutes from './routes/admin.js';
 import managementRoutes from './routes/management.js';
 import permissionRoutes from './routes/permissions.js';
+import judgeRoutes from './routes/judge.js';
 import { initializeSocket } from './services/socket.js';
 
 dotenv.config();
@@ -123,6 +124,8 @@ app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/management', managementRoutes);
 app.use('/api/permissions', permissionRoutes);
+app.use('/api/judge', judgeRoutes);
+console.log('✅ [Server] Judge routes mounted at /api/judge');
 
 // Error handling middleware
 app.use((err, req, res, next) => {

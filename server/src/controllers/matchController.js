@@ -277,6 +277,7 @@ export const updateMatch = async (req, res) => {
     if (status === 'completed' && homeScore !== null && awayScore !== null) {
       // Only calculate if this is a new completion (wasn't completed before)
       if (previousMatch?.status !== 'completed') {
+        // calculateMatchPoints already emits leaderboard updates via socket
         await calculateMatchPoints({
           homeScore,
           awayScore,

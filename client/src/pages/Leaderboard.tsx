@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Navbar } from "@/components/Navbar";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Input } from "@/components/ui/input";
 import { Link, useNavigate } from "react-router-dom";
 import { sortTeamsByPoints } from "@/lib/sortTeams";
+import { useRealtimeUpdates } from "@/hooks/useRealtimeUpdates";
 
 type LeaderboardType = "teams" | "students" | "coaches" | "schools";
 
@@ -19,6 +20,9 @@ const Leaderboard = () => {
   const [activeTab, setActiveTab] = useState<LeaderboardType>("teams");
   const [selectedTier, setSelectedTier] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState<string>("");
+
+  // Set up real-time updates via WebSocket
+  useRealtimeUpdates();
 
   // Teams leaderboard
   const { data: teamsData, isLoading: teamsLoading } = useQuery({

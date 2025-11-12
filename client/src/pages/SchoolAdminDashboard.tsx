@@ -21,6 +21,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { usePermissions } from "@/hooks/usePermissions";
 import { PermissionGate, PermissionButton } from "@/components/PermissionGate";
+import { useRealtimeUpdates } from "@/hooks/useRealtimeUpdates";
 
 const SchoolAdminDashboard = () => {
   const navigate = useNavigate();
@@ -28,6 +29,9 @@ const SchoolAdminDashboard = () => {
   const { toast } = useToast();
   const { can, permissions } = usePermissions();
   const [activeMenu, setActiveMenu] = useState("overview");
+
+  // Set up real-time updates via WebSocket
+  useRealtimeUpdates();
 
   // Fetch dashboard data
   const { data: dashboardData, isLoading: dashboardLoading, refetch: refetchDashboard } = useQuery({
@@ -37,7 +41,7 @@ const SchoolAdminDashboard = () => {
       return response.data;
     },
     enabled: isAuthenticated,
-    refetchInterval: 30000,
+    // Real-time updates handled via WebSocket (no polling)
   });
 
   const { data: leaderboard } = useQuery({

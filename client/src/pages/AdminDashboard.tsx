@@ -27,6 +27,7 @@ import { format } from "date-fns";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import axios from "@/api/axios";
+import { useRealtimeUpdates } from "@/hooks/useRealtimeUpdates";
 
 // Create Admin Form Component
 const CreateAdminForm = () => {
@@ -1033,16 +1034,45 @@ const AdminDashboard = () => {
   const [searchQuery, setSearchQuery] = useState("");
 
   // ALL HOOKS MUST BE CALLED FIRST - before any conditional returns
-  // Fetch dashboard data
-  const { data: dashboardData, isLoading: dashboardLoading, error: dashboardError, refetch: refetchDashboard } = useQuery({
+  // Set up real-time updates via WebSocket
+  useRealtimeUpdates();
+
+  // Fetch dashboard data - only enable when we have confirmed authentication and admin role
+  const isAdminAuthenticated = isAuthenticated && user?.role === "admin";
+  
+  // Get cached data to show immediately
+  const cachedData = queryClient.getQueryData(["adminDashboard"]);
+  
+  const { data: dashboardData, isLoading: dashboardLoading, isFetching: isRefetching, error: dashboardError, refetch: refetchDashboard } = useQuery({
     queryKey: ["adminDashboard"],
     queryFn: async () => {
-      const response = await dashboardApi.getAdminDashboard();
-      return response.data;
+      try {
+        const response = await dashboardApi.getAdminDashboard();
+        console.log('Admin Dashboard API Response:', {
+          status: response.status,
+          hasData: !!response.data,
+          stats: response.data?.stats,
+          teamsLength: response.data?.teams?.length,
+          schoolsLength: response.data?.schools?.length,
+          playersLength: response.data?.players?.length,
+        });
+        return response.data;
+      } catch (error: any) {
+        console.error('Error fetching admin dashboard:', {
+          message: error.message,
+          response: error.response?.data,
+          status: error.response?.status,
+        });
+        throw error;
+      }
     },
-    enabled: isAuthenticated && user?.role === "admin",
-    refetchInterval: 30000,
-    retry: 1,
+    enabled: isAdminAuthenticated, // Only run when authenticated as admin
+    retry: 2, // Retry up to 2 times on failure
+    refetchOnMount: false, // Don't block on mount - use cached data
+    refetchOnWindowFocus: true, // Refetch when window regains focus
+    staleTime: 5 * 60 * 1000, // Consider data fresh for 5 minutes
+    gcTime: 10 * 60 * 1000, // Keep in cache for 10 minutes
+    placeholderData: cachedData, // Show cached data immediately while fetching
   });
 
   const { data: leaderboard } = useQuery({
@@ -1124,16 +1154,42 @@ const AdminDashboard = () => {
     return null;
   }
 
-  if (dashboardLoading) {
-    return (
-      <div className="min-h-screen bg-[#F5F7FA] text-[#1A1A1A] flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
-          <p className="mt-4 text-muted-foreground">Loading dashboard...</p>
-        </div>
-      </div>
-    );
-  }
+  // Debug logging and authentication state
+  useEffect(() => {
+    console.log('AdminDashboard State:', {
+      isAuthenticated,
+      userRole: user?.role,
+      isAdminAuthenticated,
+      dashboardLoading,
+      hasDashboardData: !!dashboardData,
+      hasError: !!dashboardError,
+    });
+    
+    if (dashboardError) {
+      console.error('Dashboard Error Details:', {
+        message: dashboardError.message,
+        stack: dashboardError.stack,
+      });
+    }
+    
+    if (dashboardData) {
+      console.log('Dashboard Data Structure:', {
+        hasStats: !!dashboardData.stats,
+        statsKeys: dashboardData.stats ? Object.keys(dashboardData.stats) : [],
+        stats: dashboardData.stats,
+        teamsCount: dashboardData.teams?.length ?? 0,
+        schoolsCount: dashboardData.schools?.length ?? 0,
+        playersCount: dashboardData.players?.length ?? 0,
+        coachesCount: dashboardData.coaches?.length ?? 0,
+        fullData: dashboardData,
+      });
+    }
+  }, [isAuthenticated, user?.role, isAdminAuthenticated, dashboardData, dashboardError, dashboardLoading]);
+
+  // Don't block UI - show dashboard immediately with cached/default data
+  // Only show error banner if we have no cached data and there's an error
+  const hasNoData = !dashboardData && !cachedData;
+  const shouldShowError = dashboardError && hasNoData;
 
   // Extract comprehensive data from dashboard
   const stats = dashboardData?.stats || {};
@@ -1153,22 +1209,23 @@ const AdminDashboard = () => {
   const allUsers = allUsersData?.users || [];
 
   // Use comprehensive stats from backend
+  // Fallback to array lengths if stats are not available (for backward compatibility)
   const globalStats = {
-    totalSchools: stats.totalSchools || 0,
-    totalTeams: stats.totalTeams || 0,
-    totalPlayers: stats.totalPlayers || 0,
-    totalCoaches: stats.totalCoaches || 0,
-    totalJudges: stats.totalJudges || 0,
-    totalSponsors: stats.totalSponsors || 0,
-    totalSchoolAdmins: stats.totalSchoolAdmins || 0,
-    totalMatches: stats.totalMatches || 0,
-    totalChallenges: stats.totalChallenges || 0,
-    totalArenas: stats.totalArenas || 0,
-    activeMatches: stats.activeMatches || 0,
-    scheduledMatches: stats.scheduledMatches || 0,
-    completedMatches: stats.completedMatches || 0,
-    totalPoints: stats.totalPoints || 0,
-    tierBreakdown: stats.tierBreakdown || {},
+    totalSchools: stats.totalSchools ?? schools.length ?? 0,
+    totalTeams: stats.totalTeams ?? teams.length ?? 0,
+    totalPlayers: stats.totalPlayers ?? players.length ?? 0,
+    totalCoaches: stats.totalCoaches ?? coaches.length ?? 0,
+    totalJudges: stats.totalJudges ?? judges.length ?? 0,
+    totalSponsors: stats.totalSponsors ?? sponsors.length ?? 0,
+    totalSchoolAdmins: stats.totalSchoolAdmins ?? schoolAdmins.length ?? 0,
+    totalMatches: stats.totalMatches ?? matches.length ?? 0,
+    totalChallenges: stats.totalChallenges ?? challenges.length ?? 0,
+    totalArenas: stats.totalArenas ?? arenas.length ?? 0,
+    activeMatches: stats.activeMatches ?? matches.filter((m: any) => m.status === 'in_progress').length ?? 0,
+    scheduledMatches: stats.scheduledMatches ?? matches.filter((m: any) => m.status === 'scheduled').length ?? 0,
+    completedMatches: stats.completedMatches ?? matches.filter((m: any) => m.status === 'completed').length ?? 0,
+    totalPoints: stats.totalPoints ?? teams.reduce((sum: number, team: any) => sum + (team.points || 0), 0) ?? 0,
+    tierBreakdown: stats.tierBreakdown ?? {},
   };
 
   const menuItems = [
@@ -1206,6 +1263,23 @@ const AdminDashboard = () => {
     <div className="min-h-screen bg-[#F5F7FA] text-[#1A1A1A]">
       <Navbar />
       
+      {/* Error Banner - only show if no cached data */}
+      {shouldShowError && (
+        <div className="bg-red-50 border-b border-red-200 px-4 py-3">
+          <div className="container mx-auto flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <XCircle className="h-5 w-5 text-red-600" />
+              <span className="text-sm text-red-800">
+                {dashboardError?.response?.data?.error || dashboardError?.message || "Failed to load dashboard data"}
+              </span>
+            </div>
+            <Button size="sm" variant="outline" onClick={() => refetchDashboard()}>
+              Retry
+            </Button>
+          </div>
+        </div>
+      )}
+      
       {/* Top Bar */}
       <div className="border-b bg-white/95 backdrop-blur-sm sticky top-16 z-30 mt-16">
         <div className="container mx-auto px-4 py-4">
@@ -1220,6 +1294,13 @@ const AdminDashboard = () => {
               </div>
             </div>
             <div className="flex items-center gap-4">
+              {/* Subtle refresh indicator */}
+              {isRefetching && (
+                <div className="flex items-center gap-2 text-sm text-[#4A4A4A]">
+                  <div className="animate-spin rounded-full h-4 w-4 border-2 border-[#0077CC] border-t-transparent"></div>
+                  <span className="hidden sm:inline">Updating...</span>
+                </div>
+              )}
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-[#4A4A4A]" />
                 <Input

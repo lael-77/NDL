@@ -73,6 +73,13 @@ model Profile {
   receivedMessages Message[]      @relation("MessageReceiver")
   academyProgress AcademyProgress[]
   challengeSubmissions ChallengeSubmission[]
+  assignedMatches MatchJudge[] @relation("JudgeAssignments")
+  judgeScores    JudgeScore[] @relation("JudgeScorers")
+  playerScores   PlayerScore[] @relation("PlayerScorers")
+  feedbackGiven  MatchFeedback[] @relation("FeedbackGivers")
+  lineupPlayers  Lineup[] @relation("LineupPlayers")
+  scoredAsPlayer PlayerScore[] @relation("ScoredPlayers")
+  feedbackReceived MatchFeedback[] @relation("FeedbackReceivers")
 
   @@map("profiles")
 }
@@ -120,6 +127,10 @@ model Team {
   awayMatches   Match[]      @relation("AwayTeam")
   winsAsWinner  Match[]      @relation("MatchWinner")
   challengeSubmissions ChallengeSubmission[]
+  lineups       Lineup[]
+  autoScores    AutoScore[]
+  judgeScores   JudgeScore[]
+  feedback      MatchFeedback[]
 
   @@map("teams")
 }
@@ -156,6 +167,13 @@ model Match {
   awayTeam Team  @relation("AwayTeam", fields: [awayTeamId], references: [id])
   winner   Team? @relation("MatchWinner", fields: [winnerId], references: [id])
   arena    Arena? @relation("ArenaMatch", fields: [arenaId], references: [id])
+  judges   MatchJudge[]
+  lineups  Lineup[]
+  autoScores AutoScore[]
+  judgeScores JudgeScore[]
+  playerScores PlayerScore[]
+  feedback MatchFeedback[]
+  timer    MatchTimer?
 
   @@map("matches")
 }
@@ -296,5 +314,172 @@ model ArenaApplication {
   school School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
 
   @@map("arena_applications")
+}
+
+// Judge System Models
+
+enum JudgeStatus {
+  pending
+  accepted
+  declined
+}
+
+enum LineupStatus {
+  pending
+  submitted
+  approved
+}
+
+model MatchJudge {
+  id        String      @id @default(uuid())
+  matchId   String      @map("match_id")
+  judgeId   String      @map("judge_id")
+  status    JudgeStatus @default(pending)
+  isMain    Boolean     @default(false) @map("is_main")
+  assignedAt DateTime   @default(now()) @map("assigned_at")
+  respondedAt DateTime? @map("responded_at")
+  createdAt DateTime    @default(now()) @map("created_at")
+  updatedAt DateTime    @updatedAt @map("updated_at")
+
+  // Relations
+  match Match  @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  judge Profile @relation("JudgeAssignments", fields: [judgeId], references: [id], onDelete: Cascade)
+
+  @@unique([matchId, judgeId])
+  @@map("match_judges")
+}
+
+model Lineup {
+  id          String       @id @default(uuid())
+  matchId     String       @map("match_id")
+  teamId      String       @map("team_id")
+  playerId    String       @map("player_id")
+  position    String?      @db.VarChar(50)
+  role        StudentRole
+  isCaptain   Boolean      @default(false) @map("is_captain")
+  isSubstitute Boolean     @default(false) @map("is_substitute")
+  status      LineupStatus @default(pending)
+  submittedAt DateTime?    @map("submitted_at")
+  approvedAt  DateTime?    @map("approved_at")
+  createdAt   DateTime     @default(now()) @map("created_at")
+  updatedAt   DateTime     @updatedAt @map("updated_at")
+
+  // Relations
+  match Match  @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  team  Team   @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  player Profile @relation("LineupPlayers", fields: [playerId], references: [id], onDelete: Cascade)
+
+  @@unique([matchId, teamId, playerId])
+  @@map("lineups")
+}
+
+model AutoScore {
+  id              String   @id @default(uuid())
+  matchId         String   @map("match_id")
+  teamId          String   @map("team_id")
+  functionality   Int      @default(0) // 0-100
+  innovation      Int      @default(0) // 0-100
+  plagiarismFlag  Boolean  @default(false) @map("plagiarism_flag")
+  aiGeneratedFlag Boolean  @default(false) @map("ai_generated_flag")
+  suggestions     String?  @db.Text
+  evaluatedAt     DateTime @default(now()) @map("evaluated_at")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  match Match @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  team  Team  @relation(fields: [teamId], references: [id], onDelete: Cascade)
+
+  @@unique([matchId, teamId])
+  @@map("auto_scores")
+}
+
+model JudgeScore {
+  id                String   @id @default(uuid())
+  matchId           String   @map("match_id")
+  judgeId           String   @map("judge_id")
+  teamId            String   @map("team_id")
+  codeFunctionality Int      @default(0) @map("code_functionality") // 0-10
+  innovation        Int      @default(0) // 0-10
+  presentation      Int      @default(0) // 0-10
+  problemRelevance  Int      @default(0) @map("problem_relevance") // 0-10
+  feasibility       Int      @default(0) // 0-10
+  collaboration     Int      @default(0) // 0-10
+  comments          String?  @db.Text
+  isLocked          Boolean  @default(false) @map("is_locked")
+  submittedAt       DateTime? @map("submitted_at")
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  match Match  @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  judge Profile @relation("JudgeScorers", fields: [judgeId], references: [id], onDelete: Cascade)
+  team  Team   @relation(fields: [teamId], references: [id], onDelete: Cascade)
+
+  @@unique([matchId, judgeId, teamId])
+  @@map("judge_scores")
+}
+
+model PlayerScore {
+  id                String   @id @default(uuid())
+  matchId           String   @map("match_id")
+  judgeId           String   @map("judge_id")
+  playerId          String   @map("player_id")
+  rolePerformance   Int      @default(0) @map("role_performance") // 0-10
+  initiative        Int      @default(0) // 0-10
+  technicalMastery  Int      @default(0) @map("technical_mastery") // 0-10
+  creativity        Int      @default(0) // 0-10
+  collaboration     Int      @default(0) // 0-10
+  notes             String?  @db.Text
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  match Match  @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  judge Profile @relation("PlayerScorers", fields: [judgeId], references: [id], onDelete: Cascade)
+  player Profile @relation("ScoredPlayers", fields: [playerId], references: [id], onDelete: Cascade)
+
+  @@unique([matchId, judgeId, playerId])
+  @@map("player_scores")
+}
+
+model MatchFeedback {
+  id          String   @id @default(uuid())
+  matchId     String   @map("match_id")
+  judgeId     String   @map("judge_id")
+  teamId      String?  @map("team_id")
+  playerId    String?  @map("player_id")
+  message     String   @db.Text
+  isPublic    Boolean  @default(false) @map("is_public")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  match Match  @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  judge Profile @relation("FeedbackGivers", fields: [judgeId], references: [id], onDelete: Cascade)
+  team  Team?  @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  player Profile? @relation("FeedbackReceivers", fields: [playerId], references: [id], onDelete: Cascade)
+
+  @@map("match_feedback")
+}
+
+model MatchTimer {
+  id              String   @id @default(uuid())
+  matchId         String   @unique @map("match_id")
+  startTime       DateTime? @map("start_time")
+  pausedAt        DateTime? @map("paused_at")
+  elapsedSeconds  Int      @default(0) @map("elapsed_seconds")
+  isRunning       Boolean  @default(false) @map("is_running")
+  duration        Int      @default(3600) // Match duration in seconds (default 60 mins)
+  halfDuration    Int      @default(1800) // Half duration in seconds (default 30 mins, configurable 45/60)
+  currentHalf     Int      @default(1) @map("current_half") // 1 or 2
+  halftimeStatus  String?  @db.VarChar(50) @map("halftime_status") // null, "first_half", "halftime", "second_half"
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  match Match @relation(fields: [matchId], references: [id], onDelete: Cascade)
+
+  @@map("match_timers")
 }
 

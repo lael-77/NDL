@@ -294,3 +294,26 @@ All colors MUST be HSL.
     display: none;
   }
 }
+
+/* Smooth transitions for real-time updates - prevents visible reloading */
+@layer utilities {
+  /* Smooth table row updates */
+  tbody tr {
+    transition: background-color 0.2s ease-in-out, transform 0.15s ease-in-out;
+  }
+  
+  /* Smooth card updates */
+  [class*="Card"] {
+    transition: box-shadow 0.2s ease-in-out, transform 0.15s ease-in-out;
+  }
+  
+  /* Prevent flash during data updates */
+  [data-realtime-update] {
+    transition: opacity 0.15s ease-in-out;
+  }
+  
+  /* Smooth number/value updates */
+  .animate-value-change {
+    transition: color 0.2s ease-in-out;
+  }
+}

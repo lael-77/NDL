@@ -481,8 +481,21 @@ export const getAdminDashboard = async (req, res) => {
       return res.status(401).json({ error: 'Unauthorized' });
     }
 
-    // Get all comprehensive data
-    const [
+    console.log('Getting admin dashboard for user:', userId);
+
+    // Get all comprehensive data - wrap in try-catch for each query to identify failing ones
+    let totalSchools, totalTeams, totalPlayers, totalCoaches, totalJudges, totalAdmins, totalSponsors, totalSchoolAdmins;
+    let totalMatches, totalChallenges, totalArenas, totalNotifications, totalMessages;
+    let allSchools, allTeams, allPlayers, allCoaches, allJudges, allSponsors, allSchoolAdmins;
+    let allMatches, allChallenges, allArenas, recentMatches;
+
+    try {
+      // Execute queries in smaller batches to identify failing ones
+      console.log('Starting dashboard queries...');
+      
+      // Batch 1: Count queries (simple, fast)
+      console.log('Batch 1: Count queries');
+      [
       totalSchools,
       totalTeams,
       totalPlayers,
@@ -496,18 +509,6 @@ export const getAdminDashboard = async (req, res) => {
       totalArenas,
       totalNotifications,
       totalMessages,
-      allSchools,
-      allTeams,
-      allPlayers,
-      allCoaches,
-      allJudges,
-      allSponsors,
-      allSchoolAdmins,
-      allMatches,
-      allChallenges,
-      allArenas,
-      recentMatches,
-      tierBreakdown,
     ] = await Promise.all([
       prisma.school.count(),
       prisma.team.count(),
@@ -522,7 +523,7 @@ export const getAdminDashboard = async (req, res) => {
       prisma.arena.count(),
       prisma.notification.count(),
       prisma.message.count(),
-      // All schools with full details
+      // All schools with full details - use include only (no select)
       prisma.school.findMany({
         include: {
           teams: {
@@ -533,7 +534,9 @@ export const getAdminDashboard = async (req, res) => {
               captain: true,
             },
           },
-          coach: { include: { profile: true } },
+          coaches: {
+            include: { profile: true },
+          },
           arenas: true,
           arenaApplications: true,
         },
@@ -547,20 +550,6 @@ export const getAdminDashboard = async (req, res) => {
             include: { player: true },
           },
           captain: true,
-          homeMatches: {
-            include: {
-              awayTeam: { include: { school: true } },
-              arena: true,
-            },
-            take: 5,
-          },
-          awayMatches: {
-            include: {
-              homeTeam: { include: { school: true } },
-              arena: true,
-            },
-            take: 5,
-          },
         },
         orderBy: [
           { tier: 'asc' },
@@ -572,7 +561,11 @@ export const getAdminDashboard = async (req, res) => {
         where: { role: 'player' },
         include: {
           teamMembers: {
-            include: { team: { include: { school: true } } },
+            include: { 
+              team: { 
+                include: { school: true },
+              },
+            },
           },
           academyProgress: true,
           challengeSubmissions: {
@@ -581,7 +574,7 @@ export const getAdminDashboard = async (req, res) => {
         },
         orderBy: { xp: 'desc' },
       }),
-      // All coaches
+      // All coaches - simplified query
       prisma.coach.findMany({
         include: {
           profile: true,
@@ -629,15 +622,11 @@ export const getAdminDashboard = async (req, res) => {
         },
         orderBy: { releaseDate: 'desc' },
       }),
-      // All arenas
+      // All arenas (simplified - removed matches to avoid circular dependency)
       prisma.arena.findMany({
         include: {
           school: true,
           applications: true,
-          matches: {
-            take: 5,
-            orderBy: { scheduledAt: 'desc' },
-          },
         },
       }),
       // Recent matches (last 20)
@@ -651,40 +640,65 @@ export const getAdminDashboard = async (req, res) => {
         orderBy: { createdAt: 'desc' },
         take: 20,
       }),
-      // Tier breakdown
-      prisma.team.groupBy({
-        by: ['tier'],
-        _count: { id: true },
-        _sum: { points: true },
-      }),
+      // Tier breakdown - will calculate from allTeams after Promise.all
+      Promise.resolve([]), // Placeholder, will calculate from allTeams
     ]);
 
-    // Calculate comprehensive stats
+    } catch (queryError) {
+      console.error('Error in Promise.all queries:', queryError);
+      console.error('Query error stack:', queryError.stack);
+      console.error('Query error details:', {
+        name: queryError.name,
+        message: queryError.message,
+        code: queryError.code,
+        meta: queryError.meta,
+      });
+      throw queryError;
+    }
+
+    console.log('Dashboard data fetched successfully:', {
+      schools: allSchools?.length || 0,
+      teams: allTeams?.length || 0,
+      players: allPlayers?.length || 0,
+      coaches: allCoaches?.length || 0,
+    });
+
+    // Calculate tier breakdown from allTeams (more reliable than groupBy)
+    const tierBreakdownCalculated = {};
+    if (allTeams && Array.isArray(allTeams)) {
+      allTeams.forEach(team => {
+        const tier = team.tier || 'beginner';
+        if (!tierBreakdownCalculated[tier]) {
+          tierBreakdownCalculated[tier] = {
+            teams: 0,
+            totalPoints: 0,
+          };
+        }
+        tierBreakdownCalculated[tier].teams += 1;
+        tierBreakdownCalculated[tier].totalPoints += (team.points || 0);
+      });
+    }
+
+    // Calculate comprehensive stats with safety checks
     const stats = {
-      totalSchools,
-      totalTeams,
-      totalPlayers,
-      totalCoaches,
-      totalJudges,
-      totalAdmins,
-      totalSponsors,
-      totalSchoolAdmins,
-      totalMatches,
-      totalChallenges,
-      totalArenas,
-      totalNotifications,
-      totalMessages,
-      activeMatches: allMatches.filter(m => m.status === 'in_progress').length,
-      scheduledMatches: allMatches.filter(m => m.status === 'scheduled').length,
-      completedMatches: allMatches.filter(m => m.status === 'completed').length,
-      totalPoints: allTeams.reduce((sum, team) => sum + team.points, 0),
-      tierBreakdown: tierBreakdown.reduce((acc, tier) => {
-        acc[tier.tier] = {
-          teams: tier._count.id,
-          totalPoints: tier._sum.points || 0,
-        };
-        return acc;
-      }, {}),
+      totalSchools: totalSchools || 0,
+      totalTeams: totalTeams || 0,
+      totalPlayers: totalPlayers || 0,
+      totalCoaches: totalCoaches || 0,
+      totalJudges: totalJudges || 0,
+      totalAdmins: totalAdmins || 0,
+      totalSponsors: totalSponsors || 0,
+      totalSchoolAdmins: totalSchoolAdmins || 0,
+      totalMatches: totalMatches || 0,
+      totalChallenges: totalChallenges || 0,
+      totalArenas: totalArenas || 0,
+      totalNotifications: totalNotifications || 0,
+      totalMessages: totalMessages || 0,
+      activeMatches: (allMatches && Array.isArray(allMatches)) ? allMatches.filter(m => m.status === 'in_progress').length : 0,
+      scheduledMatches: (allMatches && Array.isArray(allMatches)) ? allMatches.filter(m => m.status === 'scheduled').length : 0,
+      completedMatches: (allMatches && Array.isArray(allMatches)) ? allMatches.filter(m => m.status === 'completed').length : 0,
+      totalPoints: (allTeams && Array.isArray(allTeams)) ? allTeams.reduce((sum, team) => sum + (team.points || 0), 0) : 0,
+      tierBreakdown: tierBreakdownCalculated,
     };
 
     res.json({
@@ -703,7 +717,18 @@ export const getAdminDashboard = async (req, res) => {
     });
   } catch (error) {
     console.error('Error fetching admin dashboard:', error);
-    res.status(500).json({ error: error.message });
+    console.error('Error stack:', error.stack);
+    console.error('Error details:', {
+      name: error.name,
+      message: error.message,
+      code: error.code,
+      meta: error.meta,
+    });
+    res.status(500).json({ 
+      error: error.message,
+      details: process.env.NODE_ENV === 'development' ? error.stack : undefined,
+      code: error.code,
+    });
   }
 };
 

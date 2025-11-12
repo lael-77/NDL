@@ -1,7 +1,8 @@
-import { PrismaClient } from '@prisma/client';
+import db from './database.js';
 import { emitLeaderboardUpdate, emitTeamUpdate } from './socket.js';
 
-const prisma = new PrismaClient();
+// Use the database service (primary database)
+const prisma = db;
 
 /**
  * Calculate points for a match result
