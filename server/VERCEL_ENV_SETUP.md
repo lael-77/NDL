@@ -67,6 +67,8 @@ After deployment, test your database connection:
 1. Visit: `https://your-app.vercel.app/api/test-db`
 2. You should see a JSON response with database information
 
+**📋 For detailed verification steps, see `VERIFY_VERCEL_SETUP.md`**
+
 ## Local Development Setup
 
 Create a `.env` file in the `server/` directory:
