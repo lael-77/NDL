@@ -452,21 +452,28 @@ const PlayerDashboard = () => {
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-3">
-                      {notifications.map((notif) => {
-                        const Icon = notif.icon;
-                        return (
-                          <div
-                            key={notif.id}
-                            className="flex items-start gap-3 p-3 border rounded-lg hover:bg-muted/50 transition-colors"
-                          >
-                            <Icon className="h-5 w-5 text-primary mt-0.5" />
-                            <div className="flex-1">
-                              <div className="font-medium">{notif.message}</div>
-                              <div className="text-xs text-muted-foreground mt-1">{notif.time}</div>
+                      {notifications.length > 0 ? (
+                        notifications.map((notif: any) => {
+                          const Icon = notif.icon || Bell;
+                          return (
+                            <div
+                              key={notif.id || Math.random()}
+                              className="flex items-start gap-3 p-3 border rounded-lg hover:bg-muted/50 transition-colors"
+                            >
+                              <Icon className="h-5 w-5 text-primary mt-0.5" />
+                              <div className="flex-1">
+                                <div className="font-medium">{notif.message || notif.title || "Notification"}</div>
+                                <div className="text-xs text-muted-foreground mt-1">{notif.time || notif.createdAt || "Recently"}</div>
+                              </div>
                             </div>
-                          </div>
-                        );
-                      })}
+                          );
+                        })
+                      ) : (
+                        <div className="text-center py-4 text-muted-foreground">
+                          <Bell className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                          <p className="text-sm">No notifications</p>
+                        </div>
+                      )}
                     </div>
                   </CardContent>
                 </Card>

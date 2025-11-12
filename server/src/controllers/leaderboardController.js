@@ -7,6 +7,7 @@ const prisma = db;
 // Get global leaderboard
 export const getLeaderboard = async (req, res) => {
   try {
+    console.log('🔍 [Leaderboard] Fetching global leaderboard...');
     const teams = await prisma.team.findMany({
       include: {
         school: {
@@ -31,9 +32,16 @@ export const getLeaderboard = async (req, res) => {
       ],
     });
     
+    console.log(`✅ [Leaderboard] Found ${teams.length} teams`);
     res.json(teams);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error('❌ [Leaderboard] Error fetching leaderboard:', error);
+    console.error('❌ [Leaderboard] Error stack:', error.stack);
+    res.status(500).json({ 
+      error: 'Failed to fetch leaderboard',
+      message: error.message,
+      ...(process.env.NODE_ENV === 'development' && { stack: error.stack }),
+    });
   }
 };
 

@@ -8,11 +8,26 @@ export const getPlayerDashboard = async (req, res) => {
   try {
     const userId = req.user?.userId || req.user?.id;
     
+    console.log('🔍 [Dashboard] getPlayerDashboard called, userId:', userId);
+    console.log('🔍 [Dashboard] req.user:', req.user);
+    
     if (!userId) {
       return res.status(401).json({ error: 'Unauthorized' });
     }
 
-    // Get player profile with relations
+    // Test database connection first
+    try {
+      await prisma.$queryRaw`SELECT 1`;
+      console.log('✅ [Dashboard] Database connection OK');
+    } catch (dbError) {
+      console.error('❌ [Dashboard] Database connection failed:', dbError.message);
+      return res.status(503).json({ 
+        error: 'Database connection failed',
+        message: 'Unable to connect to database. Please check your database configuration.',
+      });
+    }
+
+    // Get player profile with relations (with error handling for missing relations)
     const player = await prisma.profile.findUnique({
       where: { id: userId },
       include: {
@@ -23,10 +38,23 @@ export const getPlayerDashboard = async (req, res) => {
                 school: true,
                 members: {
                   include: {
-                    player: true,
+                    player: {
+                      select: {
+                        id: true,
+                        fullName: true,
+                        email: true,
+                        studentRole: true,
+                      },
+                    },
                   },
                 },
-                captain: true,
+                captain: {
+                  select: {
+                    id: true,
+                    fullName: true,
+                    email: true,
+                  },
+                },
               },
             },
           },
@@ -34,8 +62,20 @@ export const getPlayerDashboard = async (req, res) => {
         academyProgress: true,
         challengeSubmissions: {
           include: {
-            challenge: true,
-            team: true,
+            challenge: {
+              select: {
+                id: true,
+                title: true,
+                description: true,
+                tier: true,
+              },
+            },
+            team: {
+              select: {
+                id: true,
+                name: true,
+              },
+            },
           },
           orderBy: { submittedAt: 'desc' },
           take: 10,
@@ -46,7 +86,13 @@ export const getPlayerDashboard = async (req, res) => {
         },
         receivedMessages: {
           include: {
-            sender: true,
+            sender: {
+              select: {
+                id: true,
+                fullName: true,
+                email: true,
+              },
+            },
           },
           orderBy: { createdAt: 'desc' },
           take: 5,
@@ -55,8 +101,11 @@ export const getPlayerDashboard = async (req, res) => {
     });
 
     if (!player) {
+      console.log('❌ [Dashboard] Player not found for userId:', userId);
       return res.status(404).json({ error: 'Player not found' });
     }
+    
+    console.log('✅ [Dashboard] Player found:', player.fullName, 'Role:', player.role);
 
     // Get player's team
     const playerTeam = player.teamMembers[0]?.team;
@@ -108,8 +157,18 @@ export const getPlayerDashboard = async (req, res) => {
       challengeSubmissions: player.challengeSubmissions,
     });
   } catch (error) {
-    console.error('Error fetching player dashboard:', error);
-    res.status(500).json({ error: error.message });
+    console.error('❌ [Dashboard] Error fetching player dashboard:', error);
+    console.error('❌ [Dashboard] Error stack:', error.stack);
+    console.error('❌ [Dashboard] Error details:', {
+      message: error.message,
+      code: error.code,
+      meta: error.meta,
+    });
+    res.status(500).json({ 
+      error: 'Failed to fetch player dashboard',
+      message: error.message,
+      ...(process.env.NODE_ENV === 'development' && { stack: error.stack }),
+    });
   }
 };
 

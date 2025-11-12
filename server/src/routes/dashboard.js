@@ -10,6 +10,9 @@ import { authenticateToken } from '../middleware/auth.js';
 
 const router = express.Router();
 
+// Debug: Log route registration
+console.log('✅ [Dashboard Routes] Routes registered: /api/dashboard/*');
+
 // Dashboard routes - all require authentication
 router.get('/player', authenticateToken, getPlayerDashboard);
 router.get('/coach', authenticateToken, getCoachDashboard);
