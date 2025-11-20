@@ -17,6 +17,8 @@ import {
   submitPlayerScores,
   submitFeedback,
   getCoJudgeScores,
+  evaluateWithAI,
+  submitMatchResults,
 } from '../controllers/judgeController.js';
 
 const router = express.Router();
@@ -47,6 +49,9 @@ router.post('/matches/:matchId/timer/end', endMatch);
 router.post('/matches/:matchId/lineup', submitLineup);
 router.post('/matches/:matchId/lineup/:teamId/approve', approveLineup);
 
+// AI Evaluation
+router.post('/matches/:matchId/ai-evaluate', evaluateWithAI);
+
 // Auto-judge scores
 router.post('/matches/:matchId/auto-scores', submitAutoScores);
 
@@ -61,5 +66,7 @@ router.get('/matches/:matchId/co-judge-scores', getCoJudgeScores);
 // Feedback
 router.post('/matches/:matchId/feedback', submitFeedback);
 
-export default router;
+// Submit final match results with signatures
+router.post('/matches/:matchId/submit-results', submitMatchResults);
 
+export default router;

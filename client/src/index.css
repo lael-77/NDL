@@ -1,3 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@300;400;600;700&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -45,9 +47,18 @@ All colors MUST be HSL.
 
     --radius: 0.75rem;
     
+    /* NDL Dark + Neon Theme Colors */
+    --ndl-dark: 220 30% 8%; /* #0b0f19 */
+    --ndl-dark-secondary: 220 25% 15%; /* #1a1f2e */
+    --ndl-neon-cyan: 170 100% 50%; /* #00ffc3 */
+    --ndl-neon-pink: 330 100% 50%; /* #ff0077 */
+    --ndl-accent: 170 100% 42%; /* #00d4aa */
+    
     /* NDL Gradients */
     --gradient-primary: linear-gradient(135deg, #002B5C 0%, #0077CC 100%);
     --gradient-dark: linear-gradient(180deg, #F5F7FA 0%, #FFFFFF 100%);
+    --gradient-neon: linear-gradient(135deg, #00ffc3 0%, #00d4aa 100%);
+    --gradient-neon-pink: linear-gradient(135deg, #ff0077 0%, #ff4da6 100%);
     --shadow-glow: 0 0 40px rgba(0, 119, 204, 0.3);
     --shadow-elevated: 0 10px 40px rgba(0, 0, 0, 0.1);
 
@@ -121,6 +132,52 @@ All colors MUST be HSL.
 
   html {
     background-color: #F5F7FA;
+  }
+  
+  /* NDL Dark Theme Support */
+  .ndl-dark {
+    background: hsl(var(--ndl-dark));
+    color: hsl(var(--ndl-neon-cyan));
+  }
+  
+  .ndl-dark-secondary {
+    background: hsl(var(--ndl-dark-secondary));
+  }
+  
+  .ndl-neon-cyan {
+    color: hsl(var(--ndl-neon-cyan));
+  }
+  
+  .ndl-neon-pink {
+    color: hsl(var(--ndl-neon-pink));
+  }
+  
+  /* Futuristic Fonts */
+  .font-futuristic {
+    font-family: 'Orbitron', sans-serif;
+  }
+  
+  .font-ndl {
+    font-family: 'Rajdhani', sans-serif;
+  }
+  
+  /* Glass Effect */
+  .glass-effect {
+    background: rgba(26, 31, 46, 0.8);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(0, 255, 195, 0.2);
+  }
+  
+  /* Glowing Focus */
+  .glow-focus:focus {
+    outline: 2px solid hsl(var(--ndl-neon-cyan));
+    outline-offset: 2px;
+    box-shadow: 0 0 10px hsl(var(--ndl-neon-cyan) / 0.5);
+  }
+  
+  /* Smooth Transitions */
+  .smooth-transition {
+    transition: all 200ms ease-in-out;
   }
 }
 

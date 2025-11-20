@@ -91,12 +91,15 @@ export const register = async (req, res) => {
       expiresIn: '7d',
     });
     
+    // Return user with schoolId if applicable
     res.status(201).json({
       user: {
         id: user.id,
         email: user.email,
         fullName: user.fullName,
         role: user.role,
+        schoolId: user.schoolId || null,
+        school_id: user.schoolId || null, // Also include snake_case for compatibility
       },
       token,
     });
@@ -148,12 +151,15 @@ export const login = async (req, res) => {
       expiresIn: '7d',
     });
     
+    // Return user with schoolId if applicable
     res.json({
       user: {
         id: user.id,
         email: user.email,
         fullName: user.fullName,
         role: user.role,
+        schoolId: user.schoolId || null,
+        school_id: user.schoolId || null, // Also include snake_case for compatibility
       },
       token,
     });

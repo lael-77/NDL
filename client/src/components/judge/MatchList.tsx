@@ -125,8 +125,16 @@ export const MatchList = ({
 
               {/* Action Buttons */}
               <div className="flex items-center gap-2 flex-shrink-0">
-                {match.judgeStatus === "pending" && (
+                {match.judgeStatus === "pending" ? (
                   <>
+                    <Button
+                      onClick={() => onViewDetails(match.id)}
+                      size="lg"
+                      className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-lg"
+                    >
+                      <Eye className="h-5 w-5 mr-2" />
+                      View Details
+                    </Button>
                     <Button
                       onClick={() => onAccept(match.id)}
                       size="lg"
@@ -145,15 +153,16 @@ export const MatchList = ({
                       Decline
                     </Button>
                   </>
+                ) : (
+                  <Button
+                    onClick={() => onViewDetails(match.id)}
+                    size="lg"
+                    className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-lg"
+                  >
+                    <Eye className="h-5 w-5 mr-2" />
+                    View Details
+                  </Button>
                 )}
-                <Button
-                  onClick={() => onViewDetails(match.id)}
-                  size="lg"
-                  className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-lg"
-                >
-                  <Eye className="h-5 w-5 mr-2" />
-                  View Details
-                </Button>
               </div>
             </div>
           </CardContent>

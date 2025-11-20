@@ -9,18 +9,18 @@ const router = express.Router();
 /**
  * Test database connection endpoint
  * GET /api/test-db
- * Tests connection to Aiven database using the database utility
+ * Tests connection to local database using the database utility
  */
 router.get('/', async (req, res) => {
   let connection = null;
   
   try {
-    const databaseUrl = process.env.AIVEN_DATABASE_URL || process.env.DATABASE_URL;
+    const databaseUrl = process.env.DATABASE_URL;
     
     if (!databaseUrl) {
       return res.status(500).json({ 
         success: false, 
-        error: 'DATABASE_URL or AIVEN_DATABASE_URL not set in environment variables' 
+        error: 'DATABASE_URL not set in environment variables' 
       });
     }
 

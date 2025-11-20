@@ -8,32 +8,101 @@ const prisma = db;
 export const getLeaderboard = async (req, res) => {
   try {
     console.log('🔍 [Leaderboard] Fetching global leaderboard...');
-    const teams = await prisma.team.findMany({
-      include: {
-        school: {
+    
+    // Test database connection first
+    try {
+      await prisma.$queryRaw`SELECT 1`;
+    } catch (dbError) {
+      console.error('❌ [Leaderboard] Database connection failed:', dbError.message);
+      return res.status(503).json({ 
+        error: 'Database connection failed',
+        message: 'Unable to connect to database',
+      });
+    }
+    
+    let teams;
+    try {
+      teams = await prisma.team.findMany({
+        select: {
+          id: true,
+          name: true,
+          tier: true,
+          points: true,
+          wins: true,
+          draws: true,
+          losses: true,
+          school: {
+            select: {
+              name: true,
+              tier: true,
+              location: true,
+              motto: true,
+              sponsor: true,
+            },
+          },
+          captain: {
+            select: {
+              fullName: true,
+              email: true,
+            },
+          },
+          // Only select fields that definitely exist - don't include new fields until migrations run
+        },
+        orderBy: [
+          { points: 'desc' },
+          { wins: 'desc' },
+        ],
+      });
+    } catch (queryError) {
+      console.error('❌ [Leaderboard] Query error:', queryError.message);
+      console.error('❌ [Leaderboard] Error code:', queryError.code);
+      if (queryError.meta) {
+        console.error('❌ [Leaderboard] Error meta:', JSON.stringify(queryError.meta, null, 2));
+      }
+      
+      // If it's a column error, try with minimal fields
+      if (queryError.message && (queryError.message.includes("doesn't exist") || queryError.message.includes("Unknown column"))) {
+        console.warn('⚠️ [Leaderboard] Some columns may not exist. Please run: npm run prisma:push');
+        // Retry with only essential fields
+        teams = await prisma.team.findMany({
           select: {
+            id: true,
             name: true,
             tier: true,
-            location: true,
-            motto: true,
-            sponsor: true,
+            points: true,
+            wins: true,
+            draws: true,
+            losses: true,
+            schoolId: true,
+            captainId: true,
+            school: {
+              select: {
+                name: true,
+                tier: true,
+                location: true,
+                motto: true,
+                sponsor: true,
+              },
+            },
+            captain: {
+              select: {
+                fullName: true,
+                email: true,
+              },
+            },
           },
-        },
-        captain: {
-          select: {
-            fullName: true,
-            email: true,
-          },
-        },
-      },
-      orderBy: [
-        { points: 'desc' },
-        { wins: 'desc' },
-      ],
-    });
+          orderBy: [
+            { points: 'desc' },
+            { wins: 'desc' },
+          ],
+        });
+      } else {
+        throw queryError;
+      }
+    }
     
     console.log(`✅ [Leaderboard] Found ${teams.length} teams`);
-    res.json(teams);
+    res.json(teams || []);
   } catch (error) {
     console.error('❌ [Leaderboard] Error fetching leaderboard:', error);
     console.error('❌ [Leaderboard] Error stack:', error.stack);

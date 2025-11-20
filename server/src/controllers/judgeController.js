@@ -1,5 +1,5 @@
 import db from '../services/database.js';
-import { emitMatchUpdate, emitMatchLive } from '../services/socket.js';
+import { emitMatchUpdate, emitMatchLive, emitTimerUpdate, emitScoreUpdate, emitAIEvaluationReady } from '../services/socket.js';
 
 const prisma = db;
 
@@ -8,17 +8,23 @@ export const getAssignedMatches = async (req, res) => {
   try {
     const userId = req.user?.userId || req.user?.id;
     
+    if (!userId) {
+      return res.status(401).json({ error: 'User ID not found in token' });
+    }
+    
     console.log('🔍 [Judge API] Fetching matches for judge:', userId);
     
     // If no matches are assigned, return all matches for testing (temporary)
-    const assignedMatches = await prisma.match.findMany({
-      where: {
-        judges: {
-          some: {
-            judgeId: userId,
+    let assignedMatches = [];
+    try {
+      assignedMatches = await prisma.match.findMany({
+        where: {
+          judges: {
+            some: {
+              judgeId: userId,
+            },
           },
         },
-      },
       include: {
         homeTeam: {
           include: {
@@ -118,13 +124,20 @@ export const getAssignedMatches = async (req, res) => {
       orderBy: {
         scheduledAt: 'desc',
       },
-    });
+      });
+    } catch (queryError) {
+      console.error('❌ [Judge API] Error querying assigned matches:', queryError);
+      // If query fails, try to get all matches as fallback
+      assignedMatches = [];
+    }
 
     // If no assigned matches, assign all matches to this judge (for testing)
     if (assignedMatches.length === 0) {
       console.log('📝 [Judge API] No assigned matches found, auto-assigning all matches...');
-      const allMatches = await prisma.match.findMany({
-        include: {
+      let allMatches = [];
+      try {
+        allMatches = await prisma.match.findMany({
+          include: {
           homeTeam: {
             include: {
               school: {
@@ -223,7 +236,14 @@ export const getAssignedMatches = async (req, res) => {
         orderBy: {
           scheduledAt: 'desc',
         },
-      });
+        });
+      } catch (allMatchesError) {
+        console.error('❌ [Judge API] Error fetching all matches:', allMatchesError);
+        return res.status(500).json({ 
+          error: 'Failed to fetch matches',
+          details: allMatchesError.message 
+        });
+      }
 
       // Auto-assign this judge to all matches
       for (const match of allMatches) {
@@ -237,22 +257,29 @@ export const getAssignedMatches = async (req, res) => {
         });
 
         if (!existingAssignment) {
-          await prisma.matchJudge.create({
-            data: {
-              matchId: match.id,
-              judgeId: userId,
-              status: match.status === 'completed' ? 'accepted' : 'pending',
-              isMain: true,
-              respondedAt: match.status === 'completed' ? new Date() : null,
-            },
-          });
+          try {
+            await prisma.matchJudge.create({
+              data: {
+                matchId: match.id,
+                judgeId: userId,
+                status: match.status === 'completed' ? 'accepted' : 'pending',
+                isMain: true,
+                respondedAt: match.status === 'completed' ? new Date() : null,
+              },
+            });
+          } catch (assignError) {
+            console.error(`❌ [Judge API] Error assigning match ${match.id}:`, assignError);
+            // Continue with other matches
+          }
         }
       }
 
       console.log(`✅ [Judge API] Auto-assigned ${allMatches.length} matches to judge ${userId}`);
       
       // Fetch again with assignments
-      const updatedMatches = await prisma.match.findMany({
+      let updatedMatches = [];
+      try {
+        updatedMatches = await prisma.match.findMany({
         where: {
           judges: {
             some: {
@@ -359,11 +386,18 @@ export const getAssignedMatches = async (req, res) => {
         orderBy: {
           scheduledAt: 'desc',
         },
-      });
+        });
+      } catch (fetchError) {
+        console.error('❌ [Judge API] Error fetching updated matches:', fetchError);
+        return res.status(500).json({ 
+          error: 'Failed to fetch updated matches',
+          details: fetchError.message 
+        });
+      }
 
       // Add judge status for each match
       const matchesWithStatus = updatedMatches.map(match => {
-        const judgeAssignment = match.judges.find(j => j.judgeId === userId);
+        const judgeAssignment = match.judges?.find(j => j.judgeId === userId);
         return {
           ...match,
           judgeStatus: judgeAssignment?.status || 'pending',
@@ -376,7 +410,7 @@ export const getAssignedMatches = async (req, res) => {
 
     // Add judge status for each match
     const matchesWithStatus = assignedMatches.map(match => {
-      const judgeAssignment = match.judges.find(j => j.judgeId === userId);
+      const judgeAssignment = match.judges?.find(j => j.judgeId === userId);
       return {
         ...match,
         judgeStatus: judgeAssignment?.status || 'pending',
@@ -387,8 +421,13 @@ export const getAssignedMatches = async (req, res) => {
     console.log(`📊 [Judge API] Returning ${matchesWithStatus.length} matches with status`);
     res.json(matchesWithStatus);
   } catch (error) {
-    console.error('Error fetching assigned matches:', error);
-    res.status(500).json({ error: error.message });
+    console.error('❌ [Judge API] Error fetching assigned matches:', error);
+    console.error('Error stack:', error.stack);
+    res.status(500).json({ 
+      error: 'Failed to fetch assigned matches',
+      details: error.message,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
   }
 };
 
@@ -619,6 +658,7 @@ export const startMatchTimer = async (req, res) => {
     });
 
     emitMatchLive(matchId, { status: 'in_progress', timer });
+    emitTimerUpdate(matchId, timer);
 
     res.json({ message: 'Match started', timer });
   } catch (error) {
@@ -886,6 +926,7 @@ export const submitAutoScores = async (req, res) => {
     });
 
     emitMatchLive(matchId, { autoScore });
+    emitAIEvaluationReady(matchId, teamId, autoScore);
 
     res.json({ message: 'Auto scores submitted', autoScore });
   } catch (error) {
@@ -932,6 +973,7 @@ export const submitJudgeScores = async (req, res) => {
     });
 
     emitMatchLive(matchId, { judgeScore });
+    emitScoreUpdate(matchId, judgeScore);
 
     res.json({ message: 'Judge scores submitted', judgeScore });
   } catch (error) {
@@ -1078,6 +1120,185 @@ export const getCoJudgeScores = async (req, res) => {
     res.json(scores);
   } catch (error) {
     console.error('Error fetching co-judge scores:', error);
+    res.status(500).json({ error: error.message });
+  }
+};
+
+// AI Evaluation endpoint (mock implementation)
+export const evaluateWithAI = async (req, res) => {
+  try {
+    const { matchId } = req.params;
+    const { teamId, submissionUrl, codeArtifact, description } = req.body;
+
+    if (!teamId) {
+      return res.status(400).json({ error: 'teamId is required in request body' });
+    }
+
+    // Simulate AI evaluation delay
+    await new Promise(resolve => setTimeout(resolve, 2000));
+
+    // Mock AI evaluation results
+    const functionality = Math.floor(Math.random() * 30) + 70; // 70-100
+    const innovation = Math.floor(Math.random() * 25) + 75; // 75-100
+    const plagiarismFlag = Math.random() > 0.85; // 15% chance
+    const aiGeneratedFlag = Math.random() > 0.90; // 10% chance
+
+    const result = {
+      functionality,
+      innovation,
+      plagiarismFlag,
+      aiGeneratedFlag,
+      suggestions: plagiarismFlag
+        ? "Potential plagiarism detected. Review code similarity with known sources."
+        : aiGeneratedFlag
+        ? "Code appears to be AI-generated. Verify original work and understanding."
+        : "Code structure is solid. Consider adding error handling and optimization.",
+      evidence: {
+        plagiarism: plagiarismFlag
+          ? [
+              "High similarity (87%) with Stack Overflow solution",
+              "Identical function names and structure found in GitHub repository",
+            ]
+          : [],
+        aiGenerated: aiGeneratedFlag
+          ? [
+              "Pattern matching suggests AI code generation (92% confidence)",
+              "Unusual code formatting consistent with AI tools",
+            ]
+          : [],
+        strengths: [
+          "Clean code structure",
+          "Good variable naming",
+          "Proper use of modern JavaScript features",
+        ],
+        weaknesses: [
+          "Missing error handling",
+          "Could benefit from code comments",
+          "Performance optimization opportunities",
+        ],
+      },
+      detailedReport: `# AI Evaluation Report\n\n## Functionality Score: ${functionality}/100\nThe code demonstrates ${functionality >= 85 ? 'excellent' : functionality >= 75 ? 'good' : 'adequate'} functionality.\n\n## Innovation Score: ${innovation}/100\n${innovation >= 85 ? 'Highly innovative' : innovation >= 75 ? 'Moderately innovative' : 'Standard'} approach.`,
+      evaluatedAt: new Date().toISOString(),
+    };
+
+    res.json(result);
+  } catch (error) {
+    console.error('Error in AI evaluation:', error);
+    res.status(500).json({ error: error.message });
+  }
+};
+
+// Submit final match results with digital signatures
+export const submitMatchResults = async (req, res) => {
+  try {
+    const userId = req.user?.userId || req.user?.id;
+    const { matchId } = req.params;
+    const { signatures, finalComments } = req.body;
+
+    // Verify all judges have signed
+    const match = await prisma.match.findUnique({
+      where: { id: matchId },
+      include: {
+        judges: {
+          where: { status: 'accepted' },
+        },
+      },
+    });
+
+    if (!match) {
+      return res.status(404).json({ error: 'Match not found' });
+    }
+
+    // Check if all judges have signed
+    const requiredJudges = match.judges.length;
+    const signedJudges = Object.keys(signatures || {}).length;
+
+    if (signedJudges < requiredJudges) {
+      return res.status(400).json({
+        error: `Not all judges have signed. Required: ${requiredJudges}, Signed: ${signedJudges}`,
+      });
+    }
+
+    // Calculate final scores
+    const judgeScores = await prisma.judgeScore.findMany({
+      where: { matchId, isLocked: true },
+    });
+
+    const teamScores = {};
+    judgeScores.forEach(score => {
+      const total = (score.codeFunctionality || 0) * 0.25 +
+                   (score.innovation || 0) * 0.25 +
+                   (score.presentation || 0) * 0.15 +
+                   (score.problemRelevance || 0) * 0.20 +
+                   (score.feasibility || 0) * 0.10 +
+                   (score.collaboration || 0) * 0.05;
+      
+      if (!teamScores[score.teamId]) {
+        teamScores[score.teamId] = 0;
+      }
+      teamScores[score.teamId] += total;
+    });
+
+    // Calculate averages
+    const teamAverages = {};
+    Object.keys(teamScores).forEach(teamId => {
+      const count = judgeScores.filter(s => s.teamId === teamId).length;
+      teamAverages[teamId] = count > 0 ? teamScores[teamId] / count : 0;
+    });
+
+    // Determine winner
+    const teams = Object.keys(teamAverages);
+    if (teams.length === 0) {
+      return res.status(400).json({ error: 'No scores found for this match' });
+    }
+    const winnerId = teams.reduce((a, b) => teamAverages[a] > teamAverages[b] ? a : b);
+
+    // Update match with final results
+    const updateData = {
+      status: 'completed',
+      winnerId,
+    };
+    
+    // Only update scores if they exist
+    if (match.homeTeamId && teamAverages[match.homeTeamId] !== undefined) {
+      updateData.homeScore = Math.round(teamAverages[match.homeTeamId]);
+    }
+    if (match.awayTeamId && teamAverages[match.awayTeamId] !== undefined) {
+      updateData.awayScore = Math.round(teamAverages[match.awayTeamId]);
+    }
+
+    const updatedMatch = await prisma.match.update({
+      where: { id: matchId },
+      data: updateData,
+      include: {
+        homeTeam: true,
+        awayTeam: true,
+        winner: true,
+      },
+    });
+
+    // Store signatures (in production, store in a separate table)
+    if (finalComments) {
+      await prisma.matchFeedback.create({
+        data: {
+          matchId,
+          judgeId: userId,
+          message: finalComments,
+          isPublic: false,
+        },
+      });
+    }
+
+    emitMatchUpdate(matchId, updatedMatch);
+
+    res.json({
+      message: 'Match results submitted successfully',
+      match: updatedMatch,
+      scores: teamAverages,
+      winner: updatedMatch.winner,
+    });
+  } catch (error) {
+    console.error('Error submitting match results:', error);
     res.status(500).json({ error: error.message });
   }
 };

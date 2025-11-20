@@ -80,6 +80,7 @@ model Profile {
   lineupPlayers  Lineup[] @relation("LineupPlayers")
   scoredAsPlayer PlayerScore[] @relation("ScoredPlayers")
   feedbackReceived MatchFeedback[] @relation("FeedbackReceivers")
+  teamFeedbackAuthored TeamFeedback[] @relation("TeamFeedbackAuthor")
 
   @@map("profiles")
 }
@@ -94,6 +95,20 @@ model School {
   createdAt DateTime   @default(now()) @map("created_at")
   updatedAt DateTime   @updatedAt @map("updated_at")
 
+  // School Profile Settings
+  logoUrl         String?    @map("logo_url") @db.VarChar(500)
+  bannerUrl       String?    @map("banner_url") @db.VarChar(500)
+  address         String?    @db.Text
+  contactEmail    String?    @map("contact_email") @db.VarChar(255)
+  contactPhone    String?    @map("contact_phone") @db.VarChar(50)
+  socialMedia     String?    @map("social_media") @db.Text // JSON string for social links
+  colorTheme      String?    @map("color_theme") @db.VarChar(50) // Primary color hex
+
+  // Customization Settings
+  anthemUrl       String?    @map("anthem_url") @db.VarChar(500)
+  description     String?    @db.Text
+  achievements    String?    @db.Text // JSON string for achievements/trophies
+
   // Relations
   teams  Team[]
   coaches Coach[]
@@ -101,6 +116,9 @@ model School {
   arenaApplications ArenaApplication[]
   schoolAdmins Profile[] @relation("SchoolAdmin")
   students Profile[] @relation("StudentSchool") // Students directly linked to school
+  sponsorships SchoolSponsorship[]
+  finances SchoolFinance[]
+  notifications SchoolNotification[]
 
   @@map("schools")
 }
@@ -111,6 +129,7 @@ model Team {
   schoolId  String     @map("school_id")
   tier      TierLevel  @default(beginner)
   captainId String?    @map("captain_id")
+  coachId   String?    @map("coach_id")
   logoUrl   String?    @map("logo_url") @db.VarChar(500)
   points    Int        @default(0)
   wins      Int        @default(0)
@@ -119,9 +138,20 @@ model Team {
   createdAt DateTime   @default(now()) @map("created_at")
   updatedAt DateTime   @updatedAt @map("updated_at")
 
+  // Team Configuration Settings
+  homeArena      String?    @map("home_arena") @db.VarChar(255)
+  teamColors     String?    @map("team_colors") @db.VarChar(100) // JSON string for colors
+  category       String?    @db.VarChar(50) // Junior / Senior
+  coachCanManageLineups Boolean @default(true) @map("coach_can_manage_lineups")
+  coachCanEditInfo Boolean @default(true) @map("coach_can_edit_info")
+  coachCanUploadSubmissions Boolean @default(true) @map("coach_can_upload_submissions")
+  coachCanViewAnalytics Boolean @default(true) @map("coach_can_view_analytics")
+  coachCanManageFinances Boolean @default(false) @map("coach_can_manage_finances")
+
   // Relations
   school        School       @relation(fields: [schoolId], references: [id], onDelete: Cascade)
   captain       Profile?     @relation("TeamCaptain", fields: [captainId], references: [id])
+  coach         Coach?       @relation(fields: [coachId], references: [id], onDelete: SetNull)
   members       TeamMember[]
   homeMatches   Match[]      @relation("HomeTeam")
   awayMatches   Match[]      @relation("AwayTeam")
@@ -131,6 +161,8 @@ model Team {
   autoScores    AutoScore[]
   judgeScores   JudgeScore[]
   feedback      MatchFeedback[]
+  teamFeedback  TeamFeedback[]
+  finances      SchoolFinance[]
 
   @@map("teams")
 }
@@ -188,6 +220,7 @@ model Coach {
   // Relations
   profile Profile @relation(fields: [profileId], references: [id], onDelete: Cascade)
   school  School  @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  teams   Team[]
   // Students managed by this coach (through school relationship)
   // Access via: school -> teams -> members -> player
 
@@ -481,5 +514,80 @@ model MatchTimer {
   match Match @relation(fields: [matchId], references: [id], onDelete: Cascade)
 
   @@map("match_timers")
+}
+
+model TeamFeedback {
+  id        String   @id @default(uuid())
+  teamId    String   @map("team_id")
+  authorId  String   @map("author_id")
+  message   String   @db.Text
+  isPublic  Boolean  @default(true) @map("is_public")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  team   Team    @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  author Profile @relation("TeamFeedbackAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+
+  @@map("team_feedback")
+}
+
+model SchoolSponsorship {
+  id              String   @id @default(uuid())
+  schoolId        String   @map("school_id")
+  sponsorName     String   @map("sponsor_name") @db.VarChar(255)
+  sponsorType     String   @map("sponsor_type") @db.VarChar(50) // league_wide, direct_offer
+  status          String   @default("pending") @db.VarChar(50) // pending, approved, rejected, active
+  proposalUrl     String?  @map("proposal_url") @db.VarChar(500)
+  offerDetails    String?  @map("offer_details") @db.Text
+  assets          String?  @db.Text // JSON string for banners, ads, etc.
+  appliedAt       DateTime @default(now()) @map("applied_at")
+  approvedAt      DateTime? @map("approved_at")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  school School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+
+  @@map("school_sponsorships")
+}
+
+model SchoolFinance {
+  id              String   @id @default(uuid())
+  schoolId        String   @map("school_id")
+  type            String   @db.VarChar(50) // registration_fee, sponsorship_revenue, expense
+  amount          Decimal  @db.Decimal(10, 2)
+  description     String?  @db.Text
+  status          String   @default("pending") @db.VarChar(50) // pending, paid, due, overdue
+  dueDate         DateTime? @map("due_date")
+  paidAt          DateTime? @map("paid_at")
+  invoiceUrl      String?  @map("invoice_url") @db.VarChar(500)
+  receiptUrl      String?  @map("receipt_url") @db.VarChar(500)
+  teamId          String?  @map("team_id") // For team-specific expenses
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  school School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  team   Team?  @relation(fields: [teamId], references: [id], onDelete: SetNull)
+
+  @@map("school_finances")
+}
+
+model SchoolNotification {
+  id              String   @id @default(uuid())
+  schoolId        String   @map("school_id")
+  notificationType String  @map("notification_type") @db.VarChar(50) // match_deadline, submission_deadline, sponsorship, arena, league_announcement, coach_change
+  channel         String   @default("email") @db.VarChar(50) // email, in_app, sms
+  enabled         Boolean  @default(true)
+  urgencyLevel    String?  @map("urgency_level") @db.VarChar(20) // low, medium, high, critical
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  school School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+
+  @@unique([schoolId, notificationType])
+  @@map("school_notifications")
 }
 

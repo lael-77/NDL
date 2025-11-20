@@ -199,7 +199,7 @@ async function main() {
         },
       });
 
-      coaches.push({ ...coach, profile: coachProfile });
+      coaches.push({ ...coach, profile: coachProfile, schoolId: school.id });
       coachIndex++;
     }
   }
@@ -208,13 +208,18 @@ async function main() {
   console.log('👥 Creating 100 teams...');
   const teams = [];
   let teamIndex = 0;
-  for (const school of schools) {
+  for (let schoolIndex = 0; schoolIndex < schools.length; schoolIndex++) {
+    const school = schools[schoolIndex];
+    // Get coaches for this school (5 coaches per school)
+    const schoolCoaches = coaches.filter(c => c.schoolId === school.id);
+    
     for (let i = 0; i < 5; i++) {
       const tier = TIERS[i];
       const teamName = generateTeamName(school.name, tier);
       const points = generatePoints(tier);
       const stats = generateMatchStats(points);
-      const coach = coaches[teamIndex];
+      // Assign coach to team (one coach per team)
+      const coach = schoolCoaches[i];
 
       const team = await prisma.team.create({
         data: {
@@ -225,10 +230,11 @@ async function main() {
           wins: stats.wins,
           draws: stats.draws,
           losses: stats.losses,
+          coachId: coach ? coach.id : null, // Set coachId on team
         },
       });
 
-      teams.push({ ...team, coachId: coach.profile.id });
+      teams.push(team);
       teamIndex++;
     }
   }
@@ -514,18 +520,18 @@ async function main() {
 
   // Assign judges to matches
   console.log('👨‍⚖️  Assigning judges to matches...');
-  const judges = await prisma.profile.findMany({
+  const allJudges = await prisma.profile.findMany({
     where: { role: 'judge' },
   });
 
-  if (judges.length > 0) {
+  if (allJudges.length > 0) {
     // Get all matches (including the ones we just created)
     const allMatches = await prisma.match.findMany();
     
     for (const match of allMatches) {
       // Assign 1-2 judges per match (randomly)
       const numJudges = Math.floor(Math.random() * 2) + 1; // 1 or 2 judges
-      const selectedJudges = judges
+      const selectedJudges = allJudges
         .sort(() => Math.random() - 0.5)
         .slice(0, numJudges);
 

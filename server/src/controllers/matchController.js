@@ -9,6 +9,19 @@ const prisma = db;
 // Get all matches
 export const getMatches = async (req, res) => {
   try {
+    console.log('🔍 [Matches] Fetching all matches...');
+    
+    // Test database connection first
+    try {
+      await prisma.$queryRaw`SELECT 1`;
+    } catch (dbError) {
+      console.error('❌ [Matches] Database connection failed:', dbError.message);
+      return res.status(503).json({ 
+        error: 'Database connection failed',
+        message: 'Unable to connect to database',
+      });
+    }
+    
     const matches = await prisma.match.findMany({
       include: {
         homeTeam: {
@@ -58,10 +71,18 @@ export const getMatches = async (req, res) => {
       orderBy: {
         scheduledAt: 'desc',
       },
+    }).catch((queryError) => {
+      console.error('❌ [Matches] Query error:', queryError);
+      console.error('❌ [Matches] Error message:', queryError.message);
+      console.error('❌ [Matches] Error code:', queryError.code);
+      if (queryError.meta) {
+        console.error('❌ [Matches] Error meta:', JSON.stringify(queryError.meta, null, 2));
+      }
+      throw queryError;
     });
     
     // Sort matches: in_progress first, then scheduled, then completed
-    const sortedMatches = matches.sort((a, b) => {
+    const sortedMatches = (matches || []).sort((a, b) => {
       const statusOrder = { 'in_progress': 0, 'scheduled': 1, 'completed': 2, 'cancelled': 3 };
       const aOrder = statusOrder[a.status] || 4;
       const bOrder = statusOrder[b.status] || 4;
@@ -69,12 +90,23 @@ export const getMatches = async (req, res) => {
         return aOrder - bOrder;
       }
       // If same status, sort by date (most recent first)
-      return new Date(b.scheduledAt) - new Date(a.scheduledAt);
+      try {
+        return new Date(b.scheduledAt) - new Date(a.scheduledAt);
+      } catch (dateError) {
+        return 0;
+      }
     });
     
+    console.log(`✅ [Matches] Found ${sortedMatches.length} matches`);
     res.json(sortedMatches);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error('❌ [Matches] Error fetching matches:', error);
+    console.error('❌ [Matches] Error stack:', error.stack);
+    res.status(500).json({ 
+      error: 'Failed to fetch matches',
+      message: error.message,
+      ...(process.env.NODE_ENV === 'development' && { stack: error.stack }),
+    });
   }
 };
 

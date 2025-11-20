@@ -20,6 +20,7 @@ import {
 import { Link } from "react-router-dom";
 import { format, differenceInHours } from "date-fns";
 import { useRealtimeUpdates } from "@/hooks/useRealtimeUpdates";
+import { LiveMatchViewer } from "@/components/judge/LiveMatchViewer";
 
 const PlayerDashboard = () => {
   const navigate = useNavigate();
@@ -681,6 +682,21 @@ const PlayerDashboard = () => {
                 </TabsList>
                 <TabsContent value="upcoming" className="mt-6">
                   <div className="space-y-4">
+                    {/* Live Matches */}
+                    {matches
+                      .filter((m: any) => {
+                        return m.status === "in_progress" &&
+                               (m.homeTeamId === playerTeam?.id || m.awayTeamId === playerTeam?.id);
+                      })
+                      .map((match: any) => (
+                        <LiveMatchViewer
+                          key={match.id}
+                          matchId={match.id}
+                          onClose={() => navigate(`/matches/${match.id}`)}
+                        />
+                      ))}
+                    
+                    {/* Upcoming Scheduled Matches */}
                     {matches
                       .filter((m: any) => {
                         const matchDate = new Date(m.scheduledAt);

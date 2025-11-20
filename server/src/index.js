@@ -11,6 +11,7 @@ import adminRoutes from './routes/admin.js';
 import managementRoutes from './routes/management.js';
 import permissionRoutes from './routes/permissions.js';
 import judgeRoutes from './routes/judge.js';
+import schoolAdminRoutes from './routes/schoolAdmin.js';
 import testDbRoutes from './routes/test-db.js';
 import { initializeSocket } from './services/socket.js';
 
@@ -134,6 +135,9 @@ app.use('/api/management', managementRoutes);
 app.use('/api/permissions', permissionRoutes);
 app.use('/api/judge', judgeRoutes);
 console.log('✅ [Server] Judge routes mounted at /api/judge');
+app.use('/api/school-admin', schoolAdminRoutes);
+console.log('✅ [Server] School Admin routes mounted at /api/school-admin');
+
 app.use('/api/test-db', testDbRoutes);
 console.log('✅ [Server] Test DB routes mounted at /api/test-db');
 

@@ -83,6 +83,17 @@ export const initializeSocket = (server) => {
       socket.join('leaderboard');
       console.log(`Socket ${socket.id} joined leaderboard`);
     });
+
+    // Judge-specific events
+    socket.on('judge:join', (matchId) => {
+      socket.join(`judge:match:${matchId}`);
+      console.log(`Judge ${socket.id} joined match:${matchId}`);
+    });
+
+    socket.on('judge:leave', (matchId) => {
+      socket.leave(`judge:match:${matchId}`);
+      console.log(`Judge ${socket.id} left match:${matchId}`);
+    });
   });
 
   return io;
@@ -140,6 +151,50 @@ export const emitTeamUpdate = (teamId, teamData) => {
       teamId,
       team: teamData,
       message: `Team ${teamId} has been updated`,
+    });
+  }
+};
+
+// Emit timer update to all match participants
+export const emitTimerUpdate = (matchId, timerData) => {
+  if (io) {
+    io.to(`match:${matchId}`).emit('timer:update', {
+      matchId,
+      timer: timerData,
+      timestamp: new Date().toISOString(),
+    });
+  }
+};
+
+// Emit score update to co-judges
+export const emitScoreUpdate = (matchId, scoreData) => {
+  if (io) {
+    io.to(`judge:match:${matchId}`).emit('score:update', {
+      matchId,
+      score: scoreData,
+      timestamp: new Date().toISOString(),
+    });
+  }
+};
+
+// Emit AI evaluation ready
+export const emitAIEvaluationReady = (matchId, teamId, result) => {
+  if (io) {
+    io.to(`judge:match:${matchId}`).emit('ai:evaluation:ready', {
+      matchId,
+      teamId,
+      result,
+      timestamp: new Date().toISOString(),
+    });
+  }
+};
+
+// Emit notification to judge
+export const emitJudgeNotification = (judgeId, notification) => {
+  if (io) {
+    io.to(`user:${judgeId}`).emit('notification:judge', {
+      notification,
+      timestamp: new Date().toISOString(),
     });
   }
 };

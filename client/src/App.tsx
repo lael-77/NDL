@@ -10,6 +10,10 @@ import Dashboard from "./pages/Dashboard";
 import PlayerDashboard from "./pages/PlayerDashboard";
 import CoachDashboard from "./pages/CoachDashboard";
 import SchoolAdminDashboard from "./pages/SchoolAdminDashboard";
+import SchoolAdminStudents from "./pages/SchoolAdminStudents";
+import SchoolAdminTeams from "./pages/SchoolAdminTeams";
+import SchoolAdminSettings from "./pages/SchoolAdminSettings";
+import CreateStudent from "./pages/CreateStudent";
 import AdminDashboard from "./pages/AdminDashboard";
 import AdminSubdomainRoute from "./components/AdminSubdomainRoute";
 import JudgePanel from "./pages/JudgePanel";
@@ -62,6 +66,10 @@ const App = () => (
           <Route path="/player" element={<PlayerDashboard />} />
           <Route path="/coach" element={<CoachDashboard />} />
           <Route path="/school-admin" element={<SchoolAdminDashboard />} />
+          <Route path="/school-admin/students" element={<SchoolAdminStudents />} />
+          <Route path="/school-admin/students/new" element={<CreateStudent />} />
+          <Route path="/school-admin/teams" element={<SchoolAdminTeams />} />
+          <Route path="/school-admin/settings" element={<SchoolAdminSettings />} />
           <Route path="/admin" element={<AdminSubdomainRoute />} />
           <Route path="/judge" element={<JudgePanel />} />
           <Route path="/sponsor" element={<SponsorDashboard />} />

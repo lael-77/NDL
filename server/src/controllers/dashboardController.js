@@ -28,7 +28,9 @@ export const getPlayerDashboard = async (req, res) => {
     }
 
     // Get player profile with relations (with error handling for missing relations)
-    const player = await prisma.profile.findUnique({
+    let player;
+    try {
+      player = await prisma.profile.findUnique({
       where: { id: userId },
       include: {
         teamMembers: {
@@ -59,7 +61,10 @@ export const getPlayerDashboard = async (req, res) => {
             },
           },
         },
-        academyProgress: true,
+          academyProgress: {
+            orderBy: { enrolledAt: 'desc' },
+            take: 10,
+          },
         challengeSubmissions: {
           include: {
             challenge: {
@@ -67,7 +72,7 @@ export const getPlayerDashboard = async (req, res) => {
                 id: true,
                 title: true,
                 description: true,
-                tier: true,
+                  difficulty: true,
               },
             },
             team: {
@@ -99,6 +104,87 @@ export const getPlayerDashboard = async (req, res) => {
         },
       },
     });
+    } catch (queryError) {
+      console.error('❌ [Dashboard] Error in Prisma query:', queryError);
+      console.error('❌ [Dashboard] Query error code:', queryError.code);
+      console.error('❌ [Dashboard] Query error meta:', queryError.meta);
+      
+      // Try a simpler query as fallback
+      try {
+        console.log('🔄 [Dashboard] Attempting simpler query...');
+        player = await prisma.profile.findUnique({
+          where: { id: userId },
+          include: {
+            teamMembers: {
+              include: {
+                team: {
+                  include: {
+                    school: true,
+                  },
+                },
+              },
+            },
+          },
+        });
+        
+        console.log('🔄 [Dashboard] Fallback query result:', player ? `Found player: ${player.fullName}` : 'Player not found');
+        
+        // Fetch other relations separately if needed
+        if (player) {
+          player.academyProgress = await prisma.academyProgress.findMany({
+            where: { playerId: userId },
+            orderBy: { enrolledAt: 'desc' },
+            take: 10,
+          }).catch(() => []);
+          
+          player.challengeSubmissions = await prisma.challengeSubmission.findMany({
+            where: { playerId: userId },
+            include: {
+              challenge: {
+                select: {
+                  id: true,
+                  title: true,
+                  description: true,
+                  difficulty: true,
+                },
+              },
+              team: {
+                select: {
+                  id: true,
+                  name: true,
+                },
+              },
+            },
+            orderBy: { submittedAt: 'desc' },
+            take: 10,
+          }).catch(() => []);
+          
+          player.notifications = await prisma.notification.findMany({
+            where: { userId: userId },
+            orderBy: { createdAt: 'desc' },
+            take: 10,
+          }).catch(() => []);
+          
+          player.receivedMessages = await prisma.message.findMany({
+            where: { receiverId: userId },
+            include: {
+              sender: {
+                select: {
+                  id: true,
+                  fullName: true,
+                  email: true,
+                },
+              },
+            },
+            orderBy: { createdAt: 'desc' },
+            take: 5,
+          }).catch(() => []);
+        }
+      } catch (fallbackError) {
+        console.error('❌ [Dashboard] Fallback query also failed:', fallbackError);
+        throw queryError; // Throw original error
+      }
+    }
 
     if (!player) {
       console.log('❌ [Dashboard] Player not found for userId:', userId);

@@ -97,3 +97,20 @@ export const submitFeedback = (matchId, teamId, playerId, message, isPublic) => 
   });
 };
 
+// AI Evaluation
+export const evaluateWithAI = async (matchId, teamId, submissionData) => {
+  const response = await axios.post(`/judge/matches/${matchId}/ai-evaluate`, {
+    teamId,
+    ...submissionData,
+  });
+  return response.data;
+};
+
+// Submit final match results
+export const submitMatchResults = (matchId, signatures, finalComments) => {
+  return axios.post(`/judge/matches/${matchId}/submit-results`, {
+    signatures,
+    finalComments,
+  });
+};
+
